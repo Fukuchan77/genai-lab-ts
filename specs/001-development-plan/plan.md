@@ -1,7 +1,7 @@
-# genai-lab-ts 開発計画（設計案）
+# 001-development-plan — genai-lab-ts 開発計画（設計案）
 
 - 作成日: 2026-11-22
-- 状態: **提案（未承認）**。本書は実装前の計画であり、§9 の未決事項が決まった後に確定する
+- 状態: **設計案（決定事項反映済み・レビュー待ち）**。実装前の計画で、コードは含まない。2026-11-22 に §9 の D1〜D6 をすべて推奨案で決定した
 - 入力:
   - `genai-lab.zip`（5 フェーズの足場コード一式）と、付属ガイド「Learning roadmap and environment setup guide for building generative AI apps」（2026-11-22）
   - [`next-agentic-stack`](https://github.com/Fukuchan77/next-agentic-stack)（TypeScript ベータ検証レーン）
@@ -10,6 +10,10 @@
   - 共有会話リンク（claude.ai/share/…）: ログインが必要なページで本文を取得できなかったため、**本計画には反映していない**。必要な決定があれば本文を貼ってもらい追補する
 
 ---
+
+## Summary
+
+genai-lab-ts を from-genai-to-agentic-ai の前段となる入門ラボとし、8 段の学習ロードマップを単一の Next.js アプリで段階的に実装する。Node 26.13.1 LTS を既定、Node 27 alpha を `mise.node27.toml` + `exp/node27` で分離検証し、lefthook のフックと CI で同じ `mise run verify` を強制する。依存はすべて公開から 24 時間以上たった版へ exact pin する。
 
 ## 1. 目的と位置づけ
 
@@ -27,7 +31,7 @@ genai-lab-ts は、**生成 AI アプリ開発を基礎から 1 段ずつ積み�
 
 運用ルールは from-genai-to-agentic-ai に揃える。**相互リンクで済ませ、本文やコードを複製しない**。
 
-> この役割分担は §9 の決定 D1 で確定する。
+> この役割分担は §9 の D1 で確定した（2026-11-22）。
 
 ---
 
@@ -55,7 +59,7 @@ ZIP のガイドで確認済みの版を基準にし、兄弟リポジトリで�
 | --- | --- | --- |
 | `node = "26"`、`lefthook/gitleaks/osv-scanner = "latest"` | すべて exact pin | 公開直後の不正版を自動取得しない（next-agentic-stack の `mise.toml` の方針） |
 | `package.json` の `"latest"` / `"canary"` / `"beta"` | 公開から 24 時間以上たった特定版に exact pin | `minimumReleaseAgeExclude` で 24h ゲートを外さずに済む（next-agentic-stack の `pnpm-workspace.yaml`） |
-| `minimumReleaseAgeExclude: [next, @next/*, typescript]` | 削除（D3 で決定） | 同上 |
+| `minimumReleaseAgeExclude: [next, @next/*, typescript]` | 削除（D3） | 同上 |
 | `allowBuilds: { sharp: true }` | `sharp: false` | ビルド済みバイナリ（`@img/sharp-*`）で動くため、install スクリプトは不要と監査済み |
 | `actions/checkout@v5` などタグ指定 | コミット SHA pin + Dependabot | サプライチェーン対策 |
 | `AI_MODEL` を環境変数で自由入力 | `model-allowlist.ts` を唯一の定義にし、環境変数は allowlist 内から選ぶ | モデル ID の散在を防ぐ（両兄弟リポジトリの方針、`check:model-ids`） |
@@ -186,12 +190,45 @@ ZIP の足場は `pnpm install` / `mise run verify` を実行していない（�
 
 ---
 
-## 9. 未決事項（決定が必要）
+## 8.5 File Structure Plan（M1 で作るファイル）
 
-| ID | 論点 | 推奨 | 他の選択肢 |
+M1 の tasks.md は、ここに挙げたファイルだけを `_Boundary:_` にできる。Stage ごとのファイルは各段の spec（`specs/002-…` 以降）で定める。
+
+| File | Create/Modify | Responsibility |
+| --- | --- | --- |
+| `mise.toml` | Create | Node 26.13.1 / pnpm 12.22.x / lefthook / gitleaks / osv-scanner を exact pin し、`check` `security` `test` `e2e` `verify` `runtime` `outdated` タスクを定義する |
+| `mise.node27.toml` | Create | Node 27 alpha の版だけを上書きする |
+| `package.json` | Create | 依存の exact pin、`packageManager`、`engines`、スクリプト |
+| `pnpm-workspace.yaml` | Create | `minimumReleaseAge: 1440`（除外なし）、`allowBuilds`、`overrides` |
+| `pnpm-lock.yaml` | Create | 依存グラフの固定 |
+| `lefthook.yml` | Create | pre-commit / commit-msg / pre-push のゲート（§4） |
+| `biome.json` | Create | lint / format 設定 |
+| `tsconfig.json` | Create | `target: es2026`、`types: ["node"]` |
+| `next.config.ts` | Create | Next.js 設定 |
+| `vitest.config.ts` / `playwright.config.ts` | Create | テストランナー設定（未モック通信を失敗させる） |
+| `.env.example` | Create | 変数名だけを置く |
+| `.gitignore` | Modify | `.env*.local`、`.next`、テスト成果物を追加 |
+| `.github/workflows/ci.yml` | Create | verify（必須）と verify-node27（参考）の matrix |
+| `.github/workflows/security-daily.yml` | Create | 毎日の `pnpm audit` / osv-scanner |
+| `.github/dependabot.yml` | Create | Actions と npm の更新提案 |
+| `src/app/**`, `src/lib/ai/**`, `tests/**` | Create | ZIP の足場を §2 の修正込みで取り込む |
+| `src/lib/ai/model-allowlist.ts` | Create | モデル ID の唯一の定義 |
+| `scripts/check-model-ids.mjs` | Create | allowlist 外のモデル ID を検出する |
+| `.sdd/memory/constitution.md` | Create | §5 の共通ルールと §4 のゲートを原則化する |
+| `.sdd/steering/*` | Create | プロダクト・技術・構成の steering |
+| `AGENTS.md` | Create | エージェント向けの作業ルールとコマンド一覧 |
+| `README.md` | Modify | セットアップ、Node 27 検証手順、ロードマップ表 |
+
+## Constitution Compliance
+
+本リポジトリにはまだ `.sdd/memory/constitution.md` がない。M1 の最初のタスクで作成し、以降の spec / plan はそれに照らして検証する。
+
+## 9. 決定事項（2026-11-22、すべて推奨案を採用）
+
+| ID | 論点 | 決定 | 採らなかった選択肢 |
 | --- | --- | --- | --- |
 | D1 | 本ラボの位置づけ | from-genai-to-agentic-ai の**前段となる入門ラボ**（Level 1〜2 入口に絞る） | 独立した総合ロードマップにする（19 モジュールと重複する） |
-| D2 | 共有会話の扱い | 本文を貼ってもらい、決定事項があれば本書に追補 | 反映しない |
+| D2 | 共有会話の扱い | 本文が届いたら、決定事項があれば本書に追補する（現時点では未反映） | 反映しない |
 | D3 | プレリリースの 24h ゲート | ゲートは外さず、24h 以上たった版へ exact pin | ZIP どおり `minimumReleaseAgeExclude` で next / typescript を除外 |
 | D4 | フック管理 | lefthook（ZIP の設計、並列・直列の制御が楽） | `.githooks/` の素の shell（from-genai-to-agentic-ai と同じ） |
 | D5 | pre-push の E2E | smoke 1〜2 本を pre-push、残りは CI | すべて CI に移す |
