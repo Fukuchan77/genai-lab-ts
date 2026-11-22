@@ -1,0 +1,198 @@
+# genai-lab-ts 開発計画（設計案）
+
+- 作成日: 2026-11-22
+- 状態: **提案（未承認）**。本書は実装前の計画であり、§9 の未決事項が決まった後に確定する
+- 入力:
+  - `genai-lab.zip`（5 フェーズの足場コード一式）と、付属ガイド「Learning roadmap and environment setup guide for building generative AI apps」（2026-11-22）
+  - [`next-agentic-stack`](https://github.com/Fukuchan77/next-agentic-stack)（TypeScript ベータ検証レーン）
+  - [`from-genai-to-agentic-ai`](https://github.com/Fukuchan77/from-genai-to-agentic-ai)（4 フェーズ・19 モジュールの学習パス）
+  - [`sdd-tdd-kit`](https://github.com/Fukuchan77/sdd-tdd-kit)（SDD + TDD の Claude Code / Codex 設定）
+  - 共有会話リンク（claude.ai/share/…）: ログインが必要なページで本文を取得できなかったため、**本計画には反映していない**。必要な決定があれば本文を貼ってもらい追補する
+
+---
+
+## 1. 目的と位置づけ
+
+genai-lab-ts は、**生成 AI アプリ開発を基礎から 1 段ずつ積み上げるハンズオン・ラボ**とする。
+各段は「読む → 動かす → 改造する → テストで合格を確かめる」の単位で、API キーなしでも全テストが決定論的に通る。
+
+### 既存リポジトリとの役割分担（案）
+
+| リポジトリ | 役割 | genai-lab-ts との関係 |
+| --- | --- | --- |
+| **genai-lab-ts（本リポジトリ）** | 単一 Next.js アプリで、Level 1（生成 AI）〜 Level 2 入口（ツール呼び出し）までを小さな段で学ぶラボ | — |
+| from-genai-to-agentic-ai | モノレポで 19 モジュールを本番品質まで進める学習パス | 本ラボの卒業先。RAG・ワークフロー・マルチエージェント・Evals は本ラボで扱わず、該当モジュールへリンクする |
+| next-agentic-stack | TS 7 / Node 26 / Next canary などの次の版を先に動かすベータ検証レーン | 版の採否と既知の落とし穴の参照元。検証記録の形式（`docs/beta-lane/`）を Node 27 検証で流用する |
+| sdd-tdd-kit | SDD パイプラインと TDD の運用ルール | 本ラボの開発手順そのもの（§6） |
+
+運用ルールは from-genai-to-agentic-ai に揃える。**相互リンクで済ませ、本文やコードを複製しない**。
+
+> この役割分担は §9 の決定 D1 で確定する。
+
+---
+
+## 2. 技術スタック（2026-11-22 時点）
+
+ZIP のガイドで確認済みの版を基準にし、兄弟リポジトリで実績のある **exact pin** 方式に寄せる。
+
+| 領域 | 採用 | 固定方法 |
+| --- | --- | --- |
+| ランタイム（既定） | Node.js 26.13.1 "Lithium"（LTS） | `mise.toml` で exact pin |
+| ランタイム（検証） | Node.js 27.0.0-alpha.0.1.0 | `mise.node27.toml`（`MISE_ENV=node27`） |
+| パッケージ管理 | pnpm 12.22.x（`pnpm audit` の文字列 ID 修正を含む 12.22 以上） | `mise.toml` と `package.json#packageManager` を一致させる |
+| 言語 | TypeScript 7.1 beta（Go ネイティブ） | `package.json` で exact pin |
+| フレームワーク | Next.js 16.5 canary（App Router / Turbopack）+ React 19.3 | exact pin |
+| AI | Vercel AI SDK 7（`ai`, `@ai-sdk/react`, 各プロバイダ） | `^7` ではなく exact pin（`latest` は使わない） |
+| 検証 | Zod 4.6 | exact pin |
+| Lint / Format | Biome 2.6.8 | exact pin |
+| テスト | Vitest 5.1 / Playwright 1.65 | exact pin |
+| UI | shadcn/ui + Tailwind CSS v4（兄弟リポジトリの ADR-0008 に合わせる。導入は M3 以降） | — |
+| フック / セキュリティ | lefthook / gitleaks 8.30.x / osv-scanner v2 | `mise.toml` で exact pin（`latest` は使わない） |
+
+### ZIP からの変更点
+
+| ZIP の記述 | 本計画 | 理由 |
+| --- | --- | --- |
+| `node = "26"`、`lefthook/gitleaks/osv-scanner = "latest"` | すべて exact pin | 公開直後の不正版を自動取得しない（next-agentic-stack の `mise.toml` の方針） |
+| `package.json` の `"latest"` / `"canary"` / `"beta"` | 公開から 24 時間以上たった特定版に exact pin | `minimumReleaseAgeExclude` で 24h ゲートを外さずに済む（next-agentic-stack の `pnpm-workspace.yaml`） |
+| `minimumReleaseAgeExclude: [next, @next/*, typescript]` | 削除（D3 で決定） | 同上 |
+| `allowBuilds: { sharp: true }` | `sharp: false` | ビルド済みバイナリ（`@img/sharp-*`）で動くため、install スクリプトは不要と監査済み |
+| `actions/checkout@v5` などタグ指定 | コミット SHA pin + Dependabot | サプライチェーン対策 |
+| `AI_MODEL` を環境変数で自由入力 | `model-allowlist.ts` を唯一の定義にし、環境変数は allowlist 内から選ぶ | モデル ID の散在を防ぐ（両兄弟リポジトリの方針、`check:model-ids`） |
+
+---
+
+## 3. 環境構成: Node 26 LTS 既定 + Node 27 Alpha の分離検証
+
+### 3.1 構成
+
+```
+main                 … Node 26 LTS（mise.toml）。必須 CI
+  └ mise.node27.toml … Node 27 alpha の差分だけを持つ。main にコミットしておく
+exp/node27           … Node 27 でのみ必要な修正を置く長命ブランチ（任意）
+../genai-lab-node27  … exp/node27 の git worktree（node_modules を ABI ごとに分離）
+```
+
+- `mise.node27.toml` は main に置き、CI の matrix が同じファイルを使う（ZIP の設計どおり）。
+- Node 27 でだけ必要な修正は `exp/node27` に置き、main へは「Node 26 でも壊れない」ことを確認してから入れる。
+- worktree を分ける理由: ネイティブモジュールが Node ABI ごとにビルドされるため、`node_modules` を共有しない。
+
+### 3.2 CI
+
+| job | `MISE_ENV` | 失敗時 | トリガー |
+| --- | --- | --- | --- |
+| verify（必須） | `""` | マージをブロック | push（main / `exp/**`）・PR |
+| verify-node27（参考） | `node27` | `continue-on-error`（ブロックしない） | 同上 + 週次 schedule |
+| security-daily | `""` | 通知のみ | 毎日（advisory はロックファイルが不変でも赤くなるため） |
+
+### 3.3 Node 27 の検証記録
+
+next-agentic-stack の `docs/beta-lane/TEMPLATE.md` と同じ見出し（結論 / 検証した版 / 通したゲート / 未解決事項 / 再現手順）で `docs/node27/YYYY-MM-DD-<topic>.md` に残す。
+alpha の新版は `mise ls-remote node --prerelease | grep 27.0.0-alpha` で確認し、上げるたびに 1 記録を書く。
+
+---
+
+## 4. Git フック（セキュリティ + テスト自動化）
+
+lefthook を採用する（D4）。pre-commit は数秒で終わる並列ゲート、pre-push は安い順に直列で止まる厳格ゲート。
+`--no-verify` で回避できるため、CI は同じ `mise run verify` を実行する。
+
+| フック | ジョブ | コマンド | 防ぐもの |
+| --- | --- | --- | --- |
+| pre-commit | secrets | `gitleaks git --pre-commit --staged --redact` | API キーの誤コミット |
+| pre-commit | biome | `pnpm exec biome check --staged --no-errors-on-unmatched` | lint / format 違反 |
+| pre-commit | typecheck | `pnpm exec tsc --noEmit` | 型エラー |
+| pre-commit | model-ids | `mise run check:model-ids` | allowlist 外のモデル ID 直書き |
+| commit-msg | conventional | Conventional Commits 検査（sdd-tdd-kit の `committing-changes` に合わせる） | 不揃いな履歴 |
+| pre-push | osv-scanner | `osv-scanner scan source --lockfile=pnpm-lock.yaml` | 依存の既知 CVE（OSV） |
+| pre-push | pnpm-audit | `pnpm audit --audit-level=high` | npm advisory |
+| pre-push | unit-tests | `pnpm exec vitest run` | ロジックの回帰（モック LLM） |
+| pre-push | e2e-smoke | `pnpm exec playwright test --grep @smoke` | UI フローの破損（`/api/chat` をモック） |
+
+補足:
+
+- フックは mise 管理のツールを PATH から呼ぶ。mise を有効にしていない Git クライアントでは失敗するため、README に明記する（from-genai-to-agentic-ai と同じ注意）。
+- pre-push の E2E が 60 秒を超えるようになったら、smoke を 1〜2 本に絞るか CI 側へ移す。
+- `mise run security` は全履歴の `gitleaks git` を含み、CI は `fetch-depth: 0` で実行する。
+
+---
+
+## 5. 学習ロードマップ（段の設計）
+
+ZIP の 5 フェーズを土台に、**API を呼ぶ前の基礎（Stage 0〜1）**と**卒業の橋渡し（Stage 7）**を足して 8 段にする。
+各段は 1 つの `docs/stages/<n>-<slug>.md`、対応するソース、合格判定テストを持つ。
+
+| 段 | 学ぶこと | 主なファイル（予定） | 合格条件（自動テスト） |
+| --- | --- | --- | --- |
+| 0. 開発環境とゲート | mise / pnpm 12 / lefthook / gitleaks / osv-scanner、Node 26 と 27 の切り替え | `mise.toml`, `mise.node27.toml`, `lefthook.yml` | `mise run verify` がネットワーク不要で通る。秘密値を含む commit がフックで拒否される |
+| 1. LLM 呼び出しの基礎 | `generateText`、system / user、温度・最大トークン、usage、エラーと再試行 | `src/lib/ai/basics.ts`, `scripts/hello.ts` | モックモデルで出力・usage・再試行回数を検証 |
+| 2. ストリーミング UI | `streamText` → UI message stream、`useChat`、中断（Stop）、再送 | `src/app/api/chat/route.ts`, `src/app/page.tsx` | トークン単位で表示され、Stop で中断される（E2E @smoke） |
+| 3. 構造化出力 | `Output.object({ schema })`、Zod 4.6 `.validate()`、スキーマ違反の扱い | `src/lib/ai/extract-task.ts` | スキーマ違反が例外になる。`generateObject` の使用はリポジトリ走査で失敗 |
+| 4. ツールと承認 | `ToolLoopAgent`、`toolApproval`、停止条件 3 種（ステップ・トークン・時間）、ツール結果をデータとして扱う | `src/lib/ai/agent.ts`（`createGuardedAgent` に集約） | 破壊的ツールが承認待ちになる。停止理由ごとにテスト |
+| 5. プロバイダ抽象化 | OpenAI / Anthropic / Google / Ollama を `AI_PROVIDER` で切替、モデル allowlist | `src/lib/ai/model.ts`, `model-allowlist.ts` | 環境変数だけで切り替わる。不正値は起動時に Zod で拒否 |
+| 6. テストと簡易評価 | `MockLanguageModelV4`、Playwright `page.route` の SSE モック、出力の採点（ルールベース） | `tests/unit/*`, `tests/e2e/*` | gate がネットワークなしで通る。未モックの通信はテスト失敗 |
+| 7. 安全性と卒業 | プロンプトインジェクションの基本、入力上限・レート制限、次に学ぶこと | `src/lib/ai/limits.ts`, `docs/stages/7-next-steps.md` | 上限超過が 400 / 413 / 429 になる。from-genai-to-agentic-ai の対応モジュールへのリンクがある |
+
+扱わないもの（卒業先へリンク）: RAG、ワークフローパターン、マルチエージェント、MCP、長時間実行ハーネス、Agent Evals の本格版。
+
+各段の共通ルール（from-genai-to-agentic-ai の constitution から採る）:
+
+- モデルは引数で注入し、テストではモックに差し替える。
+- 構造化出力は `Output.object` を使い、`generateObject` / `streamObject` は使わない。
+- すべてのエージェントは停止条件 3 種を持ち、停止理由を閉じた語彙で返す。
+- モデル ID は allowlist だけに書く。
+
+---
+
+## 6. 開発プロセス（sdd-tdd-kit）
+
+sdd-tdd-kit のパイプラインで段ごとに進める。
+
+1. **ガバナンス（M1 の最初に 1 回）**: `/sdd-constitution` で `.sdd/memory/constitution.md` を作る（§5 の共通ルールと §4 のゲートを原則化）。`/sdd-steering` で `.sdd/steering/` を作り、`AGENTS.md` を置く。
+2. **段ごと**: `/sdd-init` → `/sdd-spec`（EARS 形式）→ `/sdd-plan` → `/sdd-validate-plan` → `/sdd-tasks` → `/sdd-impl`（TDD: 失敗するテストを先に書く）→ `/sdd-ship` → `/sdd-reflect`。
+3. **成果物の置き場**: `specs/<NNN>-<stage>/`（spec / plan / tasks / traceability / pdca）。
+4. **1 段 = 1 PR**（大きい段は spec PR と実装 PR に分ける）。
+
+---
+
+## 7. マイルストーン
+
+| M | 内容 | 主な成果物 | 完了条件 |
+| --- | --- | --- | --- |
+| M0 | 本計画の承認 | 本書 | §9 の未決事項が決まり、本書を「確定」にする |
+| M1 | 足場の取り込みと実地検証 | ZIP の足場（§2 の修正込み）、`pnpm-lock.yaml`、CI、lefthook、constitution / steering / AGENTS.md | ZIP ガイドの未検証 5 項目（§8）をすべて解消し、Node 26 で `mise run verify` と CI が緑 |
+| M2 | Node 27 検証レーン | `exp/node27`、CI matrix、初回の `docs/node27/` 記録 | Node 27 alpha で verify を実行し、結果（失敗を含む）を記録 |
+| M3 | Stage 0〜2 | 段の解説・コード・テスト | 各段の合格条件テストが緑 |
+| M4 | Stage 3〜5 | 同上 | 同上 |
+| M5 | Stage 6〜7 と卒業リンク | 同上、README のロードマップ表 | 全段が緑。from-genai-to-agentic-ai 側にも本ラボへのリンクを提案 |
+
+---
+
+## 8. リスクと M1 で最初に確かめること
+
+ZIP の足場は `pnpm install` / `mise run verify` を実行していない（ガイドの「Caveats」）。M1 の冒頭で次を順に確認する。
+
+- [ ] `MISE_ENV=node27 mise install` が alpha を解決できるか（`prereleases` 設定が必要かも含めて）
+- [ ] `tests/unit/agent-approval.test.ts` のモック content の形（`tool-call` / `tool-approval-request`）が AI SDK 7 の実際の型と合うか
+- [ ] `next@canary` + `typescript@beta` が peerDependency の警告なしで入るか
+- [ ] E2E の SSE モックが `useChat` のパーサーと合うか（初回の `pnpm e2e:smoke`）
+- [ ] TypeScript 7.1 RC / stable が出たら beta から切り替える
+
+その他のリスク:
+
+- Next canary はほぼ毎日出る。exact pin にしたうえで、`mise run outdated`（next-agentic-stack の `scripts/check-updates.mjs` 相当）で更新候補を出し、週 1 回まとめて上げる。
+- Node 27 alpha は ABI や API が予告なく変わる。必須 CI にはしない。
+- AI SDK 7 の API 名（`toolApproval`、`isStepCount`、`toUIMessageStream` など）は ZIP ガイド執筆時点の記述で、M1 で型定義と照合する。
+
+---
+
+## 9. 未決事項（決定が必要）
+
+| ID | 論点 | 推奨 | 他の選択肢 |
+| --- | --- | --- | --- |
+| D1 | 本ラボの位置づけ | from-genai-to-agentic-ai の**前段となる入門ラボ**（Level 1〜2 入口に絞る） | 独立した総合ロードマップにする（19 モジュールと重複する） |
+| D2 | 共有会話の扱い | 本文を貼ってもらい、決定事項があれば本書に追補 | 反映しない |
+| D3 | プレリリースの 24h ゲート | ゲートは外さず、24h 以上たった版へ exact pin | ZIP どおり `minimumReleaseAgeExclude` で next / typescript を除外 |
+| D4 | フック管理 | lefthook（ZIP の設計、並列・直列の制御が楽） | `.githooks/` の素の shell（from-genai-to-agentic-ai と同じ） |
+| D5 | pre-push の E2E | smoke 1〜2 本を pre-push、残りは CI | すべて CI に移す |
+| D6 | 解説の言語 | 散文は日本語、識別子・パス・コードは英語（兄弟リポジトリと同じ） | 英語 |
