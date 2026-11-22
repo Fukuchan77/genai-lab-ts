@@ -1,6 +1,7 @@
-# 001-development-plan — genai-lab-ts 開発計画（設計案）
+# 000-development-plan — genai-lab-ts 開発計画（設計案）
 
 - 作成日: 2026-11-22
+- spec 番号: **000**（全体計画）。実装の各段は spec 001 から始まる（§7）
 - 状態: **設計案（決定事項反映済み・レビュー待ち）**。実装前の計画で、コードは含まない。2026-11-22 に §9 の D1〜D6 をすべて推奨案で決定した
 - 入力:
   - `genai-lab.zip`（5 フェーズの足場コード一式）と、付属ガイド「Learning roadmap and environment setup guide for building generative AI apps」（2026-11-22）
@@ -50,7 +51,7 @@ genai-lab-ts は、**生成 AI アプリ開発を基礎から 1 段ずつ積み�
 | 検証 | Zod 4.6 | exact pin |
 | Lint / Format | Biome 2.6.8 | exact pin |
 | テスト | Vitest 5.1 / Playwright 1.65 | exact pin |
-| UI | shadcn/ui + Tailwind CSS v4（兄弟リポジトリの ADR-0008 に合わせる。導入は M3 以降） | — |
+| UI | shadcn/ui + Tailwind CSS v4（兄弟リポジトリの ADR-0008 に合わせる。導入は spec 002 以降） | — |
 | フック / セキュリティ | lefthook / gitleaks 8.30.x / osv-scanner v2 | `mise.toml` で exact pin（`latest` は使わない） |
 
 ### 2.1 バージョン方針: pin は「固定」ではなく「現時点の採用版」
@@ -141,19 +142,19 @@ lefthook を採用する（D4）。pre-commit は数秒で終わる並列ゲー�
 
 ## 5. 学習ロードマップ（段の設計）
 
-ZIP の 5 フェーズを土台に、**API を呼ぶ前の基礎（Stage 0〜1）**と**卒業の橋渡し（Stage 7）**を足して 8 段にする。
-各段は 1 つの `docs/stages/<n>-<slug>.md`、対応するソース、合格判定テストを持つ。
+ZIP の 5 フェーズを土台に、**API を呼ぶ前の基礎（段 1〜2）**と**卒業の橋渡し（段 8）**を足して 8 段にする。段の番号はそのまま spec 番号（段 1 = `specs/001-…`）になる。
+各段は 1 つの spec（`specs/00<n>-<slug>/`）、1 つの解説 `docs/stages/<n>-<slug>.md`、対応するソース、合格判定テストを持つ。
 
-| 段 | 学ぶこと | 主なファイル（予定） | 合格条件（自動テスト） |
+| 段（spec） | 学ぶこと | 主なファイル（予定） | 合格条件（自動テスト） |
 | --- | --- | --- | --- |
-| 0. 開発環境とゲート | mise / pnpm 12 / lefthook / gitleaks / osv-scanner、Node 26 と 27 の切り替え | `mise.toml`, `mise.node27.toml`, `lefthook.yml` | `mise run verify` がネットワーク不要で通る。秘密値を含む commit がフックで拒否される |
-| 1. LLM 呼び出しの基礎 | `generateText`、system / user、温度・最大トークン、usage、エラーと再試行 | `src/lib/ai/basics.ts`, `scripts/hello.ts` | モックモデルで出力・usage・再試行回数を検証 |
-| 2. ストリーミング UI | `streamText` → UI message stream、`useChat`、中断（Stop）、再送 | `src/app/api/chat/route.ts`, `src/app/page.tsx` | トークン単位で表示され、Stop で中断される（E2E @smoke） |
-| 3. 構造化出力 | `Output.object({ schema })`、Zod 4.6 `.validate()`、スキーマ違反の扱い | `src/lib/ai/extract-task.ts` | スキーマ違反が例外になる。`generateObject` の使用はリポジトリ走査で失敗 |
-| 4. ツールと承認 | `ToolLoopAgent`、`toolApproval`、停止条件 3 種（ステップ・トークン・時間）、ツール結果をデータとして扱う | `src/lib/ai/agent.ts`（`createGuardedAgent` に集約） | 破壊的ツールが承認待ちになる。停止理由ごとにテスト |
-| 5. プロバイダ抽象化 | OpenAI / Anthropic / Google / Ollama を `AI_PROVIDER` で切替、モデル allowlist | `src/lib/ai/model.ts`, `model-allowlist.ts` | 環境変数だけで切り替わる。不正値は起動時に Zod で拒否 |
-| 6. テストと簡易評価 | `MockLanguageModelV4`、Playwright `page.route` の SSE モック、出力の採点（ルールベース） | `tests/unit/*`, `tests/e2e/*` | gate がネットワークなしで通る。未モックの通信はテスト失敗 |
-| 7. 安全性と卒業 | プロンプトインジェクションの基本、入力上限・レート制限、次に学ぶこと | `src/lib/ai/limits.ts`, `docs/stages/7-next-steps.md` | 上限超過が 400 / 413 / 429 になる。from-genai-to-agentic-ai の対応モジュールへのリンクがある |
+| 1. 開発環境とゲート | ZIP の足場の取り込みと実地検証、mise / pnpm 12 / lefthook / gitleaks / osv-scanner、Node 26 と 27 の切り替え、constitution / steering | §8.5 の全ファイル | `mise run verify` がネットワーク不要で通る。秘密値を含む commit がフックで拒否される |
+| 2. LLM 呼び出しの基礎 | `generateText`、system / user、温度・最大トークン、usage、エラーと再試行 | `src/lib/ai/basics.ts`, `scripts/hello.ts` | モックモデルで出力・usage・再試行回数を検証 |
+| 3. ストリーミング UI | `streamText` → UI message stream、`useChat`、中断（Stop）、再送 | `src/app/api/chat/route.ts`, `src/app/page.tsx` | トークン単位で表示され、Stop で中断される（E2E @smoke） |
+| 4. 構造化出力 | `Output.object({ schema })`、Zod 4.6 `.validate()`、スキーマ違反の扱い | `src/lib/ai/extract-task.ts` | スキーマ違反が例外になる。`generateObject` の使用はリポジトリ走査で失敗 |
+| 5. ツールと承認 | `ToolLoopAgent`、`toolApproval`、停止条件 3 種（ステップ・トークン・時間）、ツール結果をデータとして扱う | `src/lib/ai/agent.ts`（`createGuardedAgent` に集約） | 破壊的ツールが承認待ちになる。停止理由ごとにテスト |
+| 6. プロバイダ抽象化 | OpenAI / Anthropic / Google / Ollama を `AI_PROVIDER` で切替、モデル allowlist | `src/lib/ai/model.ts`, `model-allowlist.ts` | 環境変数だけで切り替わる。不正値は起動時に Zod で拒否 |
+| 7. テストと簡易評価 | `MockLanguageModelV4`、Playwright `page.route` の SSE モック、出力の採点（ルールベース） | `tests/unit/*`, `tests/e2e/*` | gate がネットワークなしで通る。未モックの通信はテスト失敗 |
+| 8. 安全性と卒業 | プロンプトインジェクションの基本、入力上限・レート制限、次に学ぶこと | `src/lib/ai/limits.ts`, `docs/stages/8-next-steps.md` | 上限超過が 400 / 413 / 429 になる。from-genai-to-agentic-ai の対応モジュールへのリンクがある |
 
 扱わないもの（卒業先へリンク）: RAG、ワークフローパターン、マルチエージェント、MCP、長時間実行ハーネス、Agent Evals の本格版。
 
@@ -170,29 +171,27 @@ ZIP の 5 フェーズを土台に、**API を呼ぶ前の基礎（Stage 0〜1�
 
 sdd-tdd-kit のパイプラインで段ごとに進める。
 
-1. **ガバナンス（M1 の最初に 1 回）**: `/sdd-constitution` で `.sdd/memory/constitution.md` を作る（§5 の共通ルールと §4 のゲートを原則化）。`/sdd-steering` で `.sdd/steering/` を作り、`AGENTS.md` を置く。
+1. **ガバナンス（spec 001 の最初に 1 回）**: `/sdd-constitution` で `.sdd/memory/constitution.md` を作る（§5 の共通ルールと §4 のゲートを原則化）。`/sdd-steering` で `.sdd/steering/` を作り、`AGENTS.md` を置く。
 2. **段ごと**: `/sdd-init` → `/sdd-spec`（EARS 形式）→ `/sdd-plan` → `/sdd-validate-plan` → `/sdd-tasks` → `/sdd-impl`（TDD: 失敗するテストを先に書く）→ `/sdd-ship` → `/sdd-reflect`。
-3. **成果物の置き場**: `specs/<NNN>-<stage>/`（spec / plan / tasks / traceability / pdca）。
+3. **成果物の置き場**: `specs/000-development-plan/` は本書（全体計画）だけを持つ。各段は `specs/<NNN>-<slug>/`（spec / plan / tasks / traceability / pdca）で、NNN は段の番号（001〜008）。計画外の作業（例: 版上げで大きな変更が要るもの）は 009 以降を順に使う。
 4. **1 段 = 1 PR**（大きい段は spec PR と実装 PR に分ける）。
 
 ---
 
 ## 7. マイルストーン
 
-| M | 内容 | 主な成果物 | 完了条件 |
+| M | spec | 内容 | 完了条件 |
 | --- | --- | --- | --- |
-| M0 | 本計画の承認 | 本書 | §9 の決定を反映済み。PR のレビュー承認で「確定」にする |
-| M1 | 足場の取り込みと実地検証 | ZIP の足場（§2 の修正込み）、`pnpm-lock.yaml`、CI、lefthook、constitution / steering / AGENTS.md | ZIP ガイドの未検証 5 項目（§8）をすべて解消し、その時点の pin で Node 26 LTS の `mise run verify` と CI が緑 |
-| M2 | Node 27 検証レーン | `exp/node27`、CI matrix、初回の `docs/node27/` 記録 | Node 27 alpha で verify を実行し、結果（失敗を含む）を記録 |
-| M3 | Stage 0〜2 | 段の解説・コード・テスト | 各段の合格条件テストが緑 |
-| M4 | Stage 3〜5 | 同上 | 同上 |
-| M5 | Stage 6〜7 と卒業リンク | 同上、README のロードマップ表 | 全段が緑。from-genai-to-agentic-ai 側にも本ラボへのリンクを提案 |
+| M1 | 001 | 段 1: 足場の取り込みと実地検証、ゲート、Node 27 検証レーン（`exp/node27`、CI matrix、初回の `docs/node27/` 記録）、constitution / steering / AGENTS.md | ZIP ガイドの未検証 5 項目（§8）をすべて解消し、その時点の pin で Node 26 LTS の `mise run verify` と CI が緑。Node 27 alpha の結果（失敗を含む）を記録 |
+| M2 | 002〜003 | 段 2〜3: LLM 呼び出しの基礎、ストリーミング UI | 各段の合格条件テストが緑 |
+| M3 | 004〜006 | 段 4〜6: 構造化出力、ツールと承認、プロバイダ抽象化 | 同上 |
+| M4 | 007〜008 | 段 7〜8: テストと簡易評価、安全性と卒業、README のロードマップ表 | 全段が緑。from-genai-to-agentic-ai 側にも本ラボへのリンクを提案 |
 
----
+本書（spec 000）は本 PR のレビュー承認で「確定」とし、マイルストーンには数えない。
 
-## 8. リスクと M1 で最初に確かめること
+## 8. リスクと spec 001 で最初に確かめること
 
-ZIP の足場は `pnpm install` / `mise run verify` を実行していない（ガイドの「Caveats」）。M1 の冒頭で次を順に確認する。
+ZIP の足場は `pnpm install` / `mise run verify` を実行していない（ガイドの「Caveats」）。spec 001 の冒頭で次を順に確認する。
 
 - [ ] `MISE_ENV=node27 mise install` が alpha を解決できるか（`prereleases` 設定が必要かも含めて）
 - [ ] `tests/unit/agent-approval.test.ts` のモック content の形（`tool-call` / `tool-approval-request`）が AI SDK 7 の実際の型と合うか
@@ -204,13 +203,13 @@ ZIP の足場は `pnpm install` / `mise run verify` を実行していない（�
 
 - Next canary はほぼ毎日出る。exact pin にしたうえで、`mise run outdated`（next-agentic-stack の `scripts/check-updates.mjs` 相当）で更新候補を出し、週 1 回まとめて上げる。
 - Node 27 alpha は ABI や API が予告なく変わる。必須 CI にはしない。
-- AI SDK 7 の API 名（`toolApproval`、`isStepCount`、`toUIMessageStream` など）は ZIP ガイド執筆時点の記述で、M1 で型定義と照合する。
+- AI SDK 7 の API 名（`toolApproval`、`isStepCount`、`toUIMessageStream` など）は ZIP ガイド執筆時点の記述で、spec 001 で型定義と照合する。
 
 ---
 
-## 8.5 File Structure Plan（M1 で作るファイル）
+## 8.5 File Structure Plan（spec 001 で作るファイル）
 
-M1 の tasks.md は、ここに挙げたファイルだけを `_Boundary:_` にできる。Stage ごとのファイルは各段の spec（`specs/002-…` 以降）で定める。
+spec 001 の tasks.md は、ここに挙げたファイルだけを `_Boundary:_` にできる。段 2 以降のファイルは各段の spec（`specs/002-…` 以降）で定める。
 
 | File | Create/Modify | Responsibility |
 | --- | --- | --- |
@@ -239,7 +238,7 @@ M1 の tasks.md は、ここに挙げたファイルだけを `_Boundary:_` に�
 
 ## Constitution Compliance
 
-本リポジトリにはまだ `.sdd/memory/constitution.md` がない。M1 の最初のタスクで作成し、以降の spec / plan はそれに照らして検証する。
+本リポジトリにはまだ `.sdd/memory/constitution.md` がない。spec 001 の最初のタスクで作成し、以降の spec / plan はそれに照らして検証する。
 
 ## 9. 決定事項（2026-11-22、すべて推奨案を採用）
 
