@@ -163,7 +163,7 @@ sdd-tdd-kit のパイプラインで段ごとに進める。
 
 | M | 内容 | 主な成果物 | 完了条件 |
 | --- | --- | --- | --- |
-| M0 | 本計画の承認 | 本書 | §9 の未決事項が決まり、本書を「確定」にする |
+| M0 | 本計画の承認 | 本書 | §9 の決定を反映済み。PR のレビュー承認で「確定」にする |
 | M1 | 足場の取り込みと実地検証 | ZIP の足場（§2 の修正込み）、`pnpm-lock.yaml`、CI、lefthook、constitution / steering / AGENTS.md | ZIP ガイドの未検証 5 項目（§8）をすべて解消し、Node 26 で `mise run verify` と CI が緑 |
 | M2 | Node 27 検証レーン | `exp/node27`、CI matrix、初回の `docs/node27/` 記録 | Node 27 alpha で verify を実行し、結果（失敗を含む）を記録 |
 | M3 | Stage 0〜2 | 段の解説・コード・テスト | 各段の合格条件テストが緑 |
