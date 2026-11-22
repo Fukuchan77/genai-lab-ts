@@ -13,7 +13,7 @@
 
 ## Summary
 
-genai-lab-ts を from-genai-to-agentic-ai の前段となる入門ラボとし、8 段の学習ロードマップを単一の Next.js アプリで段階的に実装する。Node 26.13.1 LTS を既定、Node 27 alpha を `mise.node27.toml` + `exp/node27` で分離検証し、lefthook のフックと CI で同じ `mise run verify` を強制する。依存はすべて公開から 24 時間以上たった版へ exact pin する。
+genai-lab-ts を from-genai-to-agentic-ai の前段となる入門ラボとし、8 段の学習ロードマップを単一の Next.js アプリで段階的に実装する。Node 26.13.1 LTS を既定、Node 27 alpha を `mise.node27.toml` + `exp/node27` で分離検証し、lefthook のフックと CI で同じ `mise run verify` を強制する。依存は公開から 24 時間以上たった版へ exact pin するが、その版は設計時点のスナップショットであり、脆弱性スキャンや更新チェックの結果で上げていく（§2.1）。
 
 ## 1. 目的と位置づけ
 
@@ -35,9 +35,9 @@ genai-lab-ts は、**生成 AI アプリ開発を基礎から 1 段ずつ積み�
 
 ---
 
-## 2. 技術スタック（2026-11-22 時点）
+## 2. 技術スタック（2026-11-22 の設計時点で確認した版）
 
-ZIP のガイドで確認済みの版を基準にし、兄弟リポジトリで実績のある **exact pin** 方式に寄せる。
+下表の版は**設計時点（2026-11-22）に確認した版**で、実装・運用中に固定し続けるものではない（§2.1）。ZIP のガイドで確認済みの版を基準にし、兄弟リポジトリで実績のある **exact pin** 方式に寄せる。
 
 | 領域 | 採用 | 固定方法 |
 | --- | --- | --- |
@@ -53,7 +53,25 @@ ZIP のガイドで確認済みの版を基準にし、兄弟リポジトリで�
 | UI | shadcn/ui + Tailwind CSS v4（兄弟リポジトリの ADR-0008 に合わせる。導入は M3 以降） | — |
 | フック / セキュリティ | lefthook / gitleaks 8.30.x / osv-scanner v2 | `mise.toml` で exact pin（`latest` は使わない） |
 
-### ZIP からの変更点
+### 2.1 バージョン方針: pin は「固定」ではなく「現時点の採用版」
+
+exact pin は「いつ、どの版を採用したか」を lockfile と設定に明示するための手段で、版を据え置くための手段ではない。次の契機で版は上がる前提で設計する。
+
+| 契機 | 検出手段 | 対応 |
+| --- | --- | --- |
+| commit / push 時の脆弱性検出 | pre-push の `osv-scanner` / `pnpm audit`、CI の同じゲート | 修正版（24h 経過済み）へ上げる。上げられない場合は `overrides` で推移的依存だけを上げるか、退役条件付きの除外を記録する |
+| 日次の advisory 更新 | `security-daily` ワークフロー（lockfile 不変でも赤くなる） | 同上 |
+| 更新候補の定期確認 | `mise run outdated`、Dependabot | 週 1 回まとめて上げる。プレリリース（Next canary / TS beta / Node 27 alpha）は stable や RC の公開を合図に切り替える |
+| LTS / メジャーの節目 | Node の release schedule、各ライブラリの release note | 新しい段の spec として計画し直す（例: TypeScript 7.1 stable、Node 28 LTS） |
+
+完了検査（各 spec の `/sdd-validate-impl`、`/sdd-ship`、M ごとの完了条件）は次のように扱う。
+
+- 合格条件は「**その時点の pin で `mise run verify` と CI が緑**」とし、本書や spec に書いた特定の版番号に一致することを条件にしない。
+- 本書・spec・README に書く版番号は「確認日つきの参考値」とし、正本は `mise.toml`、`package.json`、`pnpm-lock.yaml` とする。版を上げても本書を書き換える義務はない（大きな節目だけ追記する）。
+- 版を上げた commit は Conventional Commits の `build(deps):` / `fix(security):` とし、理由（advisory ID や release note）を本文に書く。
+- テストやドキュメントで版番号をハードコードして検査しない（`mise run runtime` の出力は記録用で、合否には使わない）。Node は `engines` の範囲（`>=26.13.0`）と LTS 系列で判定する。
+
+### 2.2 ZIP からの変更点
 
 | ZIP の記述 | 本計画 | 理由 |
 | --- | --- | --- |
@@ -164,7 +182,7 @@ sdd-tdd-kit のパイプラインで段ごとに進める。
 | M | 内容 | 主な成果物 | 完了条件 |
 | --- | --- | --- | --- |
 | M0 | 本計画の承認 | 本書 | §9 の決定を反映済み。PR のレビュー承認で「確定」にする |
-| M1 | 足場の取り込みと実地検証 | ZIP の足場（§2 の修正込み）、`pnpm-lock.yaml`、CI、lefthook、constitution / steering / AGENTS.md | ZIP ガイドの未検証 5 項目（§8）をすべて解消し、Node 26 で `mise run verify` と CI が緑 |
+| M1 | 足場の取り込みと実地検証 | ZIP の足場（§2 の修正込み）、`pnpm-lock.yaml`、CI、lefthook、constitution / steering / AGENTS.md | ZIP ガイドの未検証 5 項目（§8）をすべて解消し、その時点の pin で Node 26 LTS の `mise run verify` と CI が緑 |
 | M2 | Node 27 検証レーン | `exp/node27`、CI matrix、初回の `docs/node27/` 記録 | Node 27 alpha で verify を実行し、結果（失敗を含む）を記録 |
 | M3 | Stage 0〜2 | 段の解説・コード・テスト | 各段の合格条件テストが緑 |
 | M4 | Stage 3〜5 | 同上 | 同上 |
@@ -196,7 +214,7 @@ M1 の tasks.md は、ここに挙げたファイルだけを `_Boundary:_` に�
 
 | File | Create/Modify | Responsibility |
 | --- | --- | --- |
-| `mise.toml` | Create | Node 26.13.1 / pnpm 12.22.x / lefthook / gitleaks / osv-scanner を exact pin し、`check` `security` `test` `e2e` `verify` `runtime` `outdated` タスクを定義する |
+| `mise.toml` | Create | Node 26 LTS / pnpm 12 / lefthook / gitleaks / osv-scanner を、作成時点で 24h 以上たった版に exact pin し、`check` `security` `test` `e2e` `verify` `runtime` `outdated` タスクを定義する |
 | `mise.node27.toml` | Create | Node 27 alpha の版だけを上書きする |
 | `package.json` | Create | 依存の exact pin、`packageManager`、`engines`、スクリプト |
 | `pnpm-workspace.yaml` | Create | `minimumReleaseAge: 1440`（除外なし）、`allowBuilds`、`overrides` |
