@@ -56,7 +56,7 @@ _Traces:_ REQ-001, REQ-003, REQ-012, DES-1.1, DES-1.6
 最初の失敗するテストを動かすための最小の基盤。憲章 原則 4 の例外はこのタスクに限り、以後のゲート設定は
 検査するテストを先に書く。
 
-- [ ] 1.1 ランタイムとツールの exact pin を `mise.toml` に書く
+- [x] 1.1 ランタイムとツールの exact pin を `mise.toml` に書く
   - 各ツール（node は 26 LTS 系列、pnpm、lefthook、gitleaks、osv-scanner）について、**公開から 24 時間以上
     経った最新の版**を選び、版・公開日時・確認日を research.md の R-1 に記録する（取得は `pnpm view`、
     `gh api repos/<owner>/<repo>/releases` など。1.3）。
@@ -68,7 +68,7 @@ _Traces:_ REQ-001, REQ-003, REQ-012, DES-1.1, DES-1.6
   _Depends:_ none
   _Requirements:_ 1.1, 1.3
   _Traces:_ REQ-001, DES-1.1
-- [ ] 1.2 npm 依存の exact pin・24h ゲート・install スクリプトの遮断を設定し、lockfile を生成する
+- [x] 1.2 npm 依存の exact pin・24h ゲート・install スクリプトの遮断を設定し、lockfile を生成する
   - `package.json`: `name`、`private: true`、`type: "module"`、`packageManager`（`mise.toml` の pnpm と同じ版。
     1.6）、`engines.node` は `">=<Node 26 LTS の採用版> || >=27.0.0-alpha"`（1.7）、`scripts` は `dev`・`build`・
     `start` のみ（検査は mise タスクに一本化し、`package.json` に重複させない）。
@@ -90,7 +90,7 @@ _Traces:_ REQ-001, REQ-003, REQ-012, DES-1.1, DES-1.6
   _Depends:_ 1.1
   _Requirements:_ 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 12.5, 12.6
   _Traces:_ REQ-001, REQ-012, DES-1.1
-- [ ] 1.3 最小の `vitest.config.ts` と `test` タスクを置く
+- [x] 1.3 最小の `vitest.config.ts` と `test` タスクを置く
   - `vitest.config.ts`: `include: ["tests/unit/**/*.test.ts"]`、`environment: "node"`、`passWithNoTests: false`
     （既定と同じ値を明記）、`allowOnly: false`、`resolve.alias` の `@` → `src`。`@vitejs/plugin-react` は使わ
     ない（ADR-4）。`setupFiles` と `reporters` はタスク 2 でテストを先に書いてから足す。
@@ -104,8 +104,15 @@ _Traces:_ REQ-001, REQ-003, REQ-012, DES-1.1, DES-1.6
 
 ### Implementation Notes
 
-<!-- Empty at generation. Implementer appends 1-3 bullet learnings after
-completing this major task. -->
+- 公開日時順で「24 時間以上の最新版」を選ぶと、バックポートの古い版（react 19.1.10）を拾う。react 系は
+  `dist-tags.latest` と突き合わせ、semver 順で選ぶ。`mise ls --json` はツール名をキーにした辞書で返る
+  （配列ではない）。タスク 3.3 の `repo-policy.test.ts` はこの形で読む。
+- このセッションの auto mode 判定は `mise trust` / `mise install` / `pnpm install` / `pnpm exec` を拒否した。
+  ユーザーの手元での実行結果を貼ってもらい、R-1 / R-2 に記録した。`mise run test` は後から実行できた。
+- 編集後の hook がファイルをタブインデントに整形する（Biome の既定）。タスク 3.2 で `biome.json` に
+  `indentStyle: "space"`、`indentWidth: 2` を指定して揃える。
+- タスク 1.3 の RED は `mise run test`（ファイル 0 件）→ exit 1、`No test files found`。
+  `passWithNoTests: false` を `true` に変えた場合の確認は、タスク 2.3 の自己検査が恒久的に担う。
 
 ---
 
@@ -120,7 +127,7 @@ _Traces:_ REQ-003, REQ-008, REQ-009, DES-1.6, DES-1.12, DES-3.1
 子プロセスを使うテストファイルは `describe(…, { timeout })` で timeout を明示する（初期値 60 秒。実測で見直し
 R-11 に記録）。`runCommand` の既定タイムアウトは 30 秒でテストの timeout より短くする。
 
-- [ ] 2.1 一時リポジトリ・ツール解決・隔離環境・子プロセス実行のヘルパー `sandbox.ts` を作る
+- [x] 2.1 一時リポジトリ・ツール解決・隔離環境・子プロセス実行のヘルパー `sandbox.ts` を作る
   - 先に `tests/unit/sandbox.test.ts` を書く: (1) `isolatedEnv()` の環境で `node -v`、`git --version`、
     `gitleaks version`、`lefthook version`、`pnpm exec vitest --version` が `expectGateSuccess` になる。
     (2) 親に `GIT_DIR`・`GIT_INDEX_FILE`・`MISE_ENV`・`LEFTHOOK` を設定しても子の環境に現れない。
@@ -148,7 +155,7 @@ R-11 に記録）。`runCommand` の既定タイムアウトは 30 秒でテス�
   _Depends:_ 1.3
   _Requirements:_ 3.7, 8.8
   _Traces:_ REQ-003, REQ-008, DES-1.6, DES-3.1
-- [ ] 2.2 unit の未モック通信ガードと、その自己検査を作る
+- [x] 2.2 unit の未モック通信ガードと、その自己検査を作る
   - 先に `tests/unit/network-guard.test.ts` と入力 `tests/fixtures/gate/vitest.fixture.config.ts`・
     `unmocked-network.fixture.ts`・`no-network.fixture.ts` を書く。入れ子の `vitest run` を 2 回起動する。
     fixture 設定は実設定を `mergeConfig` で引き継ぐが、`mergeConfig` は配列を連結するため、`test.include` は
@@ -169,7 +176,7 @@ R-11 に記録）。`runCommand` の既定タイムアウトは 30 秒でテス�
   _Depends:_ 2.1
   _Requirements:_ 3.10, 9.5
   _Traces:_ REQ-003, REQ-009, DES-1.6, DES-1.12
-- [ ] 2.3 unit の実行 0 件ガード（reporter）と、その自己検査を作る
+- [x] 2.3 unit の実行 0 件ガード（reporter）と、その自己検査を作る
   - 先に `tests/unit/gate-self-check.test.ts` の Vitest 部分を書く。`mise tasks ls --json` から `test` タスクの
     `run`（要素は文字列または `{ task }`。型ガードで絞る）を取り、その argv に引数を足して実行する
     （タスクに `--passWithNoTests` などが足されたら落ちる）。(a) `test` の argv + どのファイルにも一致しない
@@ -191,8 +198,13 @@ R-11 に記録）。`runCommand` の既定タイムアウトは 30 秒でテス�
 
 ### Implementation Notes
 
-<!-- Empty at generation. Implementer appends 1-3 bullet learnings after
-completing this major task. -->
+- `net.Socket.prototype.connect` と `fetch` の置き換えは、Vitest の既定の pool で外側・入れ子の実行ともに動いた
+  （ワーカー通信を妨げない）。置き換えをテスト本体の実行時だけに限る必要はなかった。
+- ファイル 0 件は `passWithNoTests: false` と reporter の二重のガードで、片方を外しても (a) は落ちない（実測。
+  両方を外すと落ちる）。実行 0 件（todo のみ）を止めるのは reporter だけで、(b) が守る。PROVE の記録は R-10。
+- `editArgv` は `config` と `reporter` を「置換または追記」、`grep` を「置換のみ」にした。タスク文と plan が
+  `--reporter` の追記を明示していないが、`e2e` の argv に `--reporter` がなく、`--list` の検査で必要になるため。
+- PROVE の元に戻す操作は、全体コピーでなく Edit で行う（2.1 で外部変更を上書きしかけた）。
 
 ---
 
@@ -203,7 +215,7 @@ _Depends:_ 2
 _Requirements:_ 1.2, 1.4, 1.5, 1.6, 2.1, 2.2, 2.3, 2.4, 2.5, 3.8, 3.9, 9.8, 9.9, 13.5, 13.6
 _Traces:_ REQ-001, REQ-002, REQ-003, REQ-009, REQ-013, DES-1.2, DES-1.3, DES-1.12, DES-1.16
 
-- [ ] 3.1 `tsconfig.json`・`next.config.ts` と、型検査の自己検査を作る
+- [x] 3.1 `tsconfig.json`・`next.config.ts` と、型検査の自己検査を作る
   - 先に `tests/unit/static-analysis.test.ts` の tsc 部分を書く。一時リポジトリに実際の `tsconfig.json` と
     `.gitignore` をコピーし、`node_modules` はリポジトリのものへのシンボリックリンクにする。違反ファイルを
     実際の走査対象と同じパス（`src/`、`tests/unit/`、`tests/e2e/`）に置く。`tsc --noEmit -p`（`resolveTool` で
@@ -221,7 +233,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-009, REQ-013, DES-1.2, DES-1.3, DES-1.1
   _Depends:_ 2.3
   _Requirements:_ 2.3, 2.5
   _Traces:_ REQ-002, DES-1.2, DES-1.12
-- [ ] 3.2 `biome.json` と `check` タスク、lint の自己検査を作る
+- [x] 3.2 `biome.json` と `check` タスク、lint の自己検査を作る
   - 先に `static-analysis.test.ts` に Biome 部分を足す。実際の `biome.json` を一時リポジトリにコピーし、
     明示的な `any`、未使用の変数、未使用の import、`it.skip`、`describe.skip`、テスト本体内の `test.skip(…)` →
     `expectGateFailure`、出力に `noExplicitAny`・`noUnusedVariables`・`noUnusedImports`・`noSkippedTests`
@@ -242,7 +254,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-009, REQ-013, DES-1.2, DES-1.3, DES-1.1
   _Depends:_ 3.1
   _Requirements:_ 2.1, 2.2, 2.4, 3.8, 3.9
   _Traces:_ REQ-002, REQ-003, DES-1.2, DES-1.3, DES-1.12
-- [ ] 3.3 リポジトリ規約テスト `repo-policy.test.ts` と、`.env.example`・`.gitignore` を整える
+- [x] 3.3 リポジトリ規約テスト `repo-policy.test.ts` と、`.env.example`・`.gitignore` を整える
   - 先に `tests/unit/repo-policy.test.ts` を書く（値はツールの出力か JSON から読み、版番号を期待値にしない。
     9.9）。(a) `package.json` の全依存が exact（範囲記号・dist-tag なし）（1.2）。(b) `minimumReleaseAge` が
     1440 で `minimumReleaseAgeExclude` がない（1.4）。`minimumReleaseAgeStrict` と `strictDepBuilds` が `true` と明記されている（1.4、1.5）。(c) `sharp` の `allowBuilds` が `false`（1.5）。`pnpm-workspace.yaml` は行単位の正規表現で読む（YAML ライブラリは plan に宣言がないため足さない）。
@@ -265,8 +277,15 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-009, REQ-013, DES-1.2, DES-1.3, DES-1.1
 
 ### Implementation Notes
 
-<!-- Empty at generation. Implementer appends 1-3 bullet learnings after
-completing this major task. -->
+- 保存のたびに走る post-edit hook は Biome を実行する。`biome.json` がない間はタブインデントで整形され、タスク 3.2 で
+  `biome check --write` が 13 ファイルを一括で整えた。`use` で始まる関数は `useHookAtTopLevel` に引っかかるため、
+  ヘルパーは `createTempGitRepo()` にした（タスク文の `useTempGitRepo` から名前を変えた）。
+- PROVE は Edit で壊して Edit で戻す。整形 hook が空白を変えるため、`old_string` が一致せず Edit が失敗しても
+  壊していない状態のテストが緑になり、証明にならない。値そのものを変える壊し方（`true` → `false` など）が確実。
+  終了後は、壊す前に取ったコピーと `diff` で一致を確かめた（復元には使っていない）。
+- `.env.example` は ZIP の 2 行（`AI_PROVIDER=ollama`、`OLLAMA_BASE_URL=…`）から値を外した。要件 13.5 は名前だけを許す。
+- 3.3 の (g)（`tsc --showConfig` の `strict`）の PROVE は 3.1 の `strict: false` で `static-analysis.test.ts` が落ちることまで。
+  `repo-policy.test.ts` の該当ケース単独で落ちることは確かめていない（R-10 に明記）。
 
 ---
 
@@ -277,7 +296,7 @@ _Depends:_ 2, 3
 _Requirements:_ 2.5, 3.4, 3.9, 3.11, 9.1, 9.2, 9.3, 9.6
 _Traces:_ REQ-002, REQ-003, REQ-009, DES-1.7, DES-1.11, DES-1.12
 
-- [ ] 4.1 プレースホルダーページ、最小の E2E 設定、`e2e` と `typecheck` タスクを作る
+- [x] 4.1 プレースホルダーページ、最小の E2E 設定、`e2e` と `typecheck` タスクを作る
   - 先に `tests/e2e/placeholder.smoke.spec.ts` を書く: `@smoke` タグ付き。`tests/e2e/fixtures.ts` から `test` を
     import し、`/` を開いてレベル 1 の見出し `genai-lab-ts` が表示されることを確かめる（9.3）。
     `fixtures.ts` はこの時点では `@playwright/test` の `test` / `expect` をそのまま export するだけの最小形
@@ -302,7 +321,7 @@ _Traces:_ REQ-002, REQ-003, REQ-009, DES-1.7, DES-1.11, DES-1.12
   _Depends:_ 3.3
   _Requirements:_ 2.5, 3.4, 9.1, 9.2, 9.3
   _Traces:_ REQ-002, REQ-003, REQ-009, DES-1.7, DES-1.11, DES-1.12
-- [ ] 4.2 E2E の実行 0 件ガード（reporter）と、入れ子の Playwright 実行による自己検査を作る
+- [x] 4.2 E2E の実行 0 件ガード（reporter）と、入れ子の Playwright 実行による自己検査を作る
   - 先に `gate-self-check.test.ts` に Playwright 部分を足す。入れ子実行の設定は
     `tests/fixtures/gate/e2e/playwright.fixture.config.ts`（`testDir` は `tests/fixtures/gate/e2e`、`testMatch` は
     `**/*.fixture.ts`、`webServer` なし、`reporter` は本物の reporter）。`e2e` タスクの argv（`mise tasks ls
@@ -326,7 +345,7 @@ _Traces:_ REQ-002, REQ-003, REQ-009, DES-1.7, DES-1.11, DES-1.12
   _Depends:_ 4.1, 2.3
   _Requirements:_ 3.9, 9.6
   _Traces:_ REQ-003, REQ-009, DES-1.7, DES-1.12
-- [ ] 4.3 E2E の外部オリジン遮断（auto fixture）と、teardown で失敗する経路の自己検査を作る
+- [x] 4.3 E2E の外部オリジン遮断（auto fixture）と、teardown で失敗する経路の自己検査を作る
   - 先に入力 `tests/fixtures/gate/e2e/external-request.fixture.ts`（`tests/e2e/fixtures.ts` から `test` を import
     し、`page.setContent` で外部オリジン（`.invalid` ドメイン）への要求を出すページを描画）と
     `no-external-request.fixture.ts`（外部要求なしの対照）、`gate-self-check.test.ts` の (e) を書く:
@@ -349,7 +368,7 @@ _Traces:_ REQ-002, REQ-003, REQ-009, DES-1.7, DES-1.11, DES-1.12
   _Depends:_ 4.2
   _Requirements:_ 3.11, 9.6
   _Traces:_ REQ-003, REQ-009, DES-1.7, DES-1.12
-- [ ] 4.4 外部通信の遮断と記録を確かめる `@smoke` を足し、`@smoke` の一覧の自己検査を拡張する
+- [x] 4.4 外部通信の遮断と記録を確かめる `@smoke` を足し、`@smoke` の一覧の自己検査を拡張する
   - 先に `tests/e2e/network-guard.smoke.spec.ts` を書く: `@smoke`。`test.fail()` は**使わない**（失敗の原因を
     区別しないため）。`test.use({ failOnBlockedRequest: false })` で teardown の失敗を止め、`/` を開いてページ内
     から外部オリジン（`.invalid` ドメイン）へ `fetch` する。本文で (a) fixture の `blockedRequests` にその URL が
@@ -365,8 +384,14 @@ _Traces:_ REQ-002, REQ-003, REQ-009, DES-1.7, DES-1.11, DES-1.12
 
 ### Implementation Notes
 
-<!-- Empty at generation. Implementer appends 1-3 bullet learnings after
-completing this major task. -->
+- Playwright の入れ子設定では、`testDir` と reporter のパスが作業ディレクトリでなく設定ファイルからの相対で解決される
+  （plan の `testDir: "tests/fixtures/gate/e2e"` は 0 件になった）。R-9 に記録した。
+- `.invalid` ドメインへの要求は、`route.abort` を外しても DNS 失敗で同じ結果になり、遮断が効いているかを区別できない。
+  ガードの検査は、実際に応答するローカルサーバー（`127.0.0.1` のランダムなポート）に向け、`hits === 0` と
+  `outcome === "blocked"` を assert する形にした。plan の記述からの変更で、R-9 に記録した。
+- `getByRole(..., { name })` は部分一致なので、見出しの検査は `exact: true` が要る（4.1 の PROVE で、変えた見出しでも通った）。
+- PROVE の「壊す」Edit が失敗しても、壊れていないテストは緑になる。毎回、壊す前のコピーと `diff` で復元を確かめ、
+  壊した状態の失敗の出力そのものを読んだ。
 
 ---
 
@@ -377,7 +402,7 @@ _Depends:_ 3
 _Requirements:_ 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 9.4
 _Traces:_ REQ-006, REQ-009, DES-1.8, DES-2.1, DES-3.1
 
-- [ ] 5.1 モデル ID の allowlist を、形状のテストを先に書いて作り、各 ID の根拠を記録する
+- [x] 5.1 モデル ID の allowlist を、形状のテストを先に書いて作り、各 ID の根拠を記録する
   - 先に `tests/unit/check-model-ids.test.ts` に allowlist の形状テストを書く（**RED を確認**: ファイルがなく import に失敗する）: `PROVIDERS` が `openai`・`anthropic`・`google`・`ollama` の 4 つ、`MODEL_ALLOWLIST` の各プロバイダに 1 件以上の空でない文字列があり、全体で重複がない。
   - `src/lib/ai/model-allowlist.ts`（消去可能な構文だけで書く。`enum` や `namespace` を使わない。Node の型
     ストリップで import できること）: `PROVIDERS`（`"openai" | "anthropic" | "google" | "ollama"` の readonly
@@ -392,7 +417,7 @@ _Traces:_ REQ-006, REQ-009, DES-1.8, DES-2.1, DES-3.1
   _Depends:_ 3.3
   _Requirements:_ 6.1, 6.2
   _Traces:_ REQ-006, DES-1.8
-- [ ] 5.2 `check:model-ids` を、テストを先に書いて作る
+- [x] 5.2 `check:model-ids` を、テストを先に書いて作る
   - 先に `tests/unit/check-model-ids.test.ts` を書く。一時リポジトリ（`useTempGitRepo`）に入力を置いて CLI を
     実行し、ID は allowlist を import して、または命名形式に一致する文字列を**実行時に連結**して作る
     （テスト自身が検出されないため）。ケース: 直書きなし → 0 と走査ファイル数（6.7）、走査対象の種類ごと
@@ -422,8 +447,16 @@ _Traces:_ REQ-006, REQ-009, DES-1.8, DES-2.1, DES-3.1
 
 ### Implementation Notes
 
-<!-- Empty at generation. Implementer appends 1-3 bullet learnings after
-completing this major task. -->
+- 検出パターンと許可 ID はテストの中でも実行時に組み立てる（`join_` と allowlist の import）。リテラルを書くと、
+  `check:model-ids` が自分のテストを検出する。実リポジトリへの実行（`scanned 26 files, 0 findings`）が、スクリプトと
+  テストが自分を検出しないことの確認になる。
+- 正規表現の断片を `["small", "lm"].join("")` と書いたら `smalllm` になり、パターンが何にも一致しなかった（`smollm`）。
+  断片を結合する書き方は、結合後の文字列をテストで確かめないと間違いに気づけない。サンプルごとの `it.each` が拾った。
+- PROVE の 5 番目（`--exclude-standard` を外す）は最初、何も失敗しなかった。ignore 済みファイルを置いた `ignored/` が
+  走査対象外のディレクトリで、別の理由で除外されていたため。ファイルを `src/ignored/` に置き直して初めて意味のある検査になった。
+- tasks.md の「`\b` の挙動」は実測と食い違った。R-9 に記録した（`\b` と今の境界の違いはハイフン）。
+- `package.json` を走査対象の例に使うには、有効な JSON にしないと、Node が allowlist を import するときに
+  `Invalid package config` で失敗する（一時リポジトリに置いた `package.json` を Node が読むため）。
 
 ---
 
@@ -434,7 +467,7 @@ _Depends:_ 2, 3
 _Requirements:_ 7.3, 7.4, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8
 _Traces:_ REQ-007, REQ-008, DES-1.9, DES-1.10, DES-2.1
 
-- [ ] 6.1 秘密値を含む commit の拒否を、テストを先に書いて作る（段 1 の合格条件）
+- [x] 6.1 秘密値を含む commit の拒否を、テストを先に書いて作る（段 1 の合格条件）
   - 先に `tests/unit/gitleaks-pre-commit.test.ts` を書く（**RED を確認**: `lefthook.yml` がない状態で失敗する）。
     1. `lefthook dump --format=json` から `pre-commit.jobs[name="secrets"].run` を取り、空白で分割した argv の
        先頭が `gitleaks` であること、シェルのメタ文字を含まないことを確かめる（8.3）。
@@ -462,7 +495,7 @@ _Traces:_ REQ-007, REQ-008, DES-1.9, DES-1.10, DES-2.1
   _Depends:_ 2.3, 1.1, 3.2
   _Requirements:_ 7.3, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8
   _Traces:_ REQ-007, REQ-008, DES-1.9, DES-1.10
-- [ ] 6.2 commit-msg の検査スクリプトを、テストを先に書いて作る
+- [x] 6.2 commit-msg の検査スクリプトを、テストを先に書いて作る
   - 先に `tests/unit/check-commit-msg.test.ts` を書く（**RED を確認**）: 正しい形式（type、scope、`!`）→ 0、
     type 不明・コロンなし・件名が空 → 1、`Merge …` / `Revert "…"` / `fixup! …` / `squash! …` / `amend! …` → 0、
     `#` で始まる行と空行の無視、引数なし・読めないファイル → 2（7.4）。
@@ -478,8 +511,15 @@ _Traces:_ REQ-007, REQ-008, DES-1.9, DES-1.10, DES-2.1
 
 ### Implementation Notes
 
-<!-- Empty at generation. Implementer appends 1-3 bullet learnings after
-completing this major task. -->
+- 入れ子の Vitest の出力に、`TERM` だけで ANSI の色が混ざる機械があった（開発者の手元。この記録を書いた
+  セッションの環境では再現しない）。`isolatedEnv({ nested: true })` が `NO_COLOR=1` と `FORCE_TTY=false` を設定して
+  対処した。調査（I-17）の「色の変数を設定しなければ ANSI は出ない」は、機械ごとに成り立たなかった（R-9）。
+- 手元でしか再現しない問題は、こちらの環境で緑でも修正の証拠にならない。環境変数を 1 つずつ外して数える実測を、
+  手元で取ってもらってから、原因の候補を絞った。
+- PROVE は、PROVE のたびに「壊す前のコピーとの `diff`」で復元を確かめる。復元を `cp` で行うと、外部の変更を
+  黙って上書きしうる（`check-commit-msg.mjs` で外部変更の通知があり、以後は Edit で戻して `diff` で確認した）。
+- 自動判定（auto mode）が、セキュリティの検査のフラグを外す操作を拒否することがある。その場合は、手元のターミナルで
+  実行してもらい、出力を貼ってもらう（`--ignore-gitleaks-allow` の PROVE）。
 
 ---
 
@@ -490,7 +530,7 @@ _Depends:_ 4, 5, 6
 _Requirements:_ 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.12, 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.2, 5.3, 5.4, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 8.5, 13.3
 _Traces:_ REQ-003, REQ-004, REQ-005, REQ-007, REQ-008, REQ-013, DES-1.3, DES-1.4, DES-1.5, DES-1.9, DES-1.12, DES-2.1, DES-3.1
 
-- [ ] 7.1 `verify`（別名 `gate`）と `check:secrets` を、構成のテストを先に書いて作る
+- [x] 7.1 `verify`（別名 `gate`）と `check:secrets` を、構成のテストを先に書いて作る
   - 先に `tests/unit/gitleaks-pre-commit.test.ts` に `check:secrets` のケースを足す（3.12。**RED を確認**: タスクがない）: `mise tasks ls --json` から `check:secrets` の `run`（argv）を取り、`useTempGitRepo()` の一時リポジトリに偽キーを含む commit を作る（フックは入れない）。その argv の gitleaks を `resolveTool()` の絶対パスで実行し、非 0、出力に `RuleID` があり偽キーの値が含まれない（6.1 の (3) と同じ真偽値の比較）ことを確かめる。対照: 偽キーのない commit だけの履歴 → 0。
   - 先に `tests/unit/verify-offline-contract.test.ts` と `tests/unit/hooks-config.test.ts` のタスク側を書く
     （**RED を確認**）。`mise tasks ls --json` を読む（`run` の要素は文字列または `{ task }`。単一の文字列の
@@ -518,7 +558,7 @@ _Traces:_ REQ-003, REQ-004, REQ-005, REQ-007, REQ-008, REQ-013, DES-1.3, DES-1.4
   _Depends:_ 4.4, 5.2, 6.1
   _Requirements:_ 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.12, 8.5
   _Traces:_ REQ-003, REQ-008, DES-1.3, DES-1.10, DES-1.12, DES-2.1
-- [ ] 7.2 `security` タスク群を、構成のテストを先に書いて作る
+- [x] 7.2 `security` タスク群を、構成のテストを先に書いて作る
   - 先に `hooks-config.test.ts` に足す（**RED を確認**）: `security` が `security:osv` → `security:audit` を
     この順で過不足なく参照する（4.1）。`security:audit` が `--audit-level=high` を含み、`--ignore-registry-errors`
     と `|| true` を含まない（4.2、4.4）。`security:osv` が `pnpm-lock.yaml` を対象にする（4.3）。除外の記録形式（4.5）は、
@@ -536,7 +576,7 @@ _Traces:_ REQ-003, REQ-004, REQ-005, REQ-007, REQ-008, REQ-013, DES-1.3, DES-1.4
   _Depends:_ 7.1
   _Requirements:_ 4.1, 4.2, 4.3, 4.4, 4.5
   _Traces:_ REQ-004, DES-1.4, DES-1.12
-- [ ] 7.3 補助タスク `runtime`・`outdated`・`setup` を、構成のテストを先に書いて作る
+- [x] 7.3 補助タスク `runtime`・`outdated`・`setup` を、構成のテストを先に書いて作る
   - 実装（次の bullet のテストを先に書いて **RED を確認**してから行う）。`runtime`: `node -v`、`pnpm -v`、`pnpm exec tsc -v`、`pnpm exec next --version`、`lefthook version`、
     `gitleaks version`、`osv-scanner --version` を出力し、期待値と照合せず終了コード 0 を返す（5.1、5.2）。
     `outdated`: `mise outdated`（ツール）→ `pnpm outdated`（npm 依存）。`pnpm outdated` は候補があると
@@ -552,7 +592,7 @@ _Traces:_ REQ-003, REQ-004, REQ-005, REQ-007, REQ-008, REQ-013, DES-1.3, DES-1.4
   _Depends:_ 7.2
   _Requirements:_ 5.1, 5.2, 5.3, 5.4, 13.3
   _Traces:_ REQ-005, REQ-013, DES-1.5, DES-1.12
-- [ ] 7.4 `lefthook.yml` のジョブをすべて定義する（フックの構成をテストで先に固定）
+- [x] 7.4 `lefthook.yml` のジョブをすべて定義する（フックの構成をテストで先に固定）
   - 先に `hooks-config.test.ts` にフック側を足す（**RED を確認**）。`lefthook dump --format=json` を読む:
     `assert_lefthook_installed` が真（7.7）。pre-commit が `parallel` で 4 ジョブ（7.2）。commit-msg の
     ジョブがある（7.4）。pre-push が `piped` で `osv-scanner` → `pnpm-audit` → `unit-tests` → `e2e-smoke` の順
@@ -570,7 +610,7 @@ _Traces:_ REQ-003, REQ-004, REQ-005, REQ-007, REQ-008, REQ-013, DES-1.3, DES-1.4
   _Depends:_ 7.3, 6.2
   _Requirements:_ 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8
   _Traces:_ REQ-007, DES-1.9, DES-1.12, DES-2.1
-- [ ] 7.5 フックの実行（ツール不在・lefthook 不在）を確かめ、実リポジトリに `lefthook install` する
+- [x] 7.5 フックの実行（ツール不在・lefthook 不在）を確かめ、実リポジトリに `lefthook install` する
   - `hooks-config.test.ts` に実行ケースを足す。検査される構成は 7.4 までに作ってあるので、ケースは足した直後に緑になりうる。そのため通常の RED（実装がなくて失敗する）が得られない。代わりに**ケースごとに、検査対象を壊した状態で失敗することを確かめる（RED）**。下のケースの括弧内が壊し方で、一時リポジトリ内の設定・入力だけを壊し、実リポジトリのファイルは書き換えない。壊した状態で失敗しないケースは、緑に進まずテストを直す。RED の結果（ケース、壊し方、失敗の出力の要点）を R-9 に表で記録する。タスク 12.3 の非空虚の確認は、この RED の再確認として残す。lefthook は stage されたファイルがないと
     ジョブを skip して exit 0 になるため、どのケースもファイルを stage してから実行する。
     1. 一時リポジトリに実際の設定を置いて `lefthook install` → 3 つのフックファイルができる（7.1）。
@@ -599,8 +639,14 @@ _Traces:_ REQ-003, REQ-004, REQ-005, REQ-007, REQ-008, REQ-013, DES-1.3, DES-1.4
 
 ### Implementation Notes
 
-<!-- Empty at generation. Implementer appends 1-3 bullet learnings after
-completing this major task. -->
+- 自動判定（auto mode）が拒否した Edit のあとは、次の Edit の前に、壊す前のコピーとの `diff` を取る。7.4 で、拒否と部分適用が
+  重なって `lefthook.yml` のフラグが二重に追記され、全ゲートの最後に `verify` の終了コード 1 で初めて気づいた。
+- 破壊の 1 回目が、意図した規則まで届かないことがある（7.3 の `| grep` は一覧の完全一致で先に落ちた）。失敗の出力が、
+  狙った規則の文言から出ていることを毎回確かめる。
+- 構成がすでにできた後に書く実行ケース（7.5）は、通常の RED が得られない。ケースごとにテストの入力を壊して RED を取り、
+  R-9 に表で残した。
+- 実リポジトリに影響する操作（`mise run setup` によるフックの導入）は、開発者の手元で実行してもらった。以後、このリポジトリの
+  `git commit` ではフックが走る。
 
 ---
 
@@ -611,7 +657,7 @@ _Depends:_ 7
 _Requirements:_ 1.8, 10.1, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.9, 10.10, 10.11, 10.12
 _Traces:_ REQ-001, REQ-010, DES-1.13, DES-2.1
 
-- [ ] 8.1 `ci.yml`（verify・verify-node27）を、文字列検査のテストを先に書いて作る
+- [x] 8.1 `ci.yml`（verify・verify-node27）を、文字列検査のテストを先に書いて作る
   - 先にテストを足す（**RED を確認**）。`repo-policy.test.ts`（静的な規約）: ワークフローのすべての `uses:` が 40 桁の SHA で固定されている（10.8）、`secrets.` の参照が `GITHUB_TOKEN` 以外にない（10.10）。`hooks-config.test.ts`（`ci.yml` の文字列）: `verify` ジョブが `mise run verify` と `mise run security` を、`verify-node27` が `mise run verify` を含む（10.1、10.3）、最上位が `permissions: {}` で各ジョブが `permissions:` を持つ（10.9）。同じファイルに、ゲートを空振りさせうる設定の検査も足す: `verify` ジョブの checkout が `fetch-depth: 0`（10.6）、`pnpm install` がすべて `--frozen-lockfile` 付き（10.7）、`verify-node27` が `continue-on-error: true` で `verify` には `continue-on-error` がない（10.4）。いずれも、設定を 1 つ外すと失敗することを RED で確かめる。
   - `.github/workflows/ci.yml`: トリガーは `push`（`main`、`exp/**`）、`pull_request`、週次 `schedule`、
     `workflow_dispatch`。最上位 `permissions: {}`、各ジョブ `permissions: { contents: read }`。
@@ -630,7 +676,7 @@ _Traces:_ REQ-001, REQ-010, DES-1.13, DES-2.1
   _Depends:_ 7.5
   _Requirements:_ 1.8, 10.1, 10.3, 10.4, 10.6, 10.7, 10.8, 10.9, 10.10
   _Traces:_ REQ-010, REQ-001, DES-1.13, DES-2.1
-- [ ] 8.2 (P) `security-daily.yml` を、存在のテストを先に書いて作る
+- [x] 8.2 (P) `security-daily.yml` を、存在のテストを先に書いて作る
   - 先に `hooks-config.test.ts` に「`security-daily.yml` が存在し、`mise run security` を含み、毎日の `schedule` を持つ」を足す（**RED を確認**: ファイルがない）。
   - 毎日の `schedule` と `workflow_dispatch`。checkout（SHA 固定、`persist-credentials: false`）→ mise-action →
     `mise run security`。`permissions: { contents: read }`、最上位 `permissions: {}`。失敗はワークフローの失敗
@@ -642,7 +688,7 @@ _Traces:_ REQ-001, REQ-010, DES-1.13, DES-2.1
   _Depends:_ 8.1
   _Requirements:_ 10.5, 10.8, 10.9, 10.10
   _Traces:_ REQ-010, DES-1.13
-- [ ] 8.3 (P) `dependabot.yml` を作る
+- [x] 8.3 (P) `dependabot.yml` を作る
   - `npm` と `github-actions`（いずれも `directory: "/"`、`schedule.interval: weekly`、`cooldown.default-days: 1`、
     `commit-message.prefix: "build"` + `include: "scope"` で `build(deps):`）。npm は 1 つのグループにまとめる
     （週 1 回まとめて上げる）。公開から 24 時間未満の版を version updates で提案しない（10.11、10.12）。
@@ -661,8 +707,13 @@ _Traces:_ REQ-001, REQ-010, DES-1.13, DES-2.1
 
 ### Implementation Notes
 
-<!-- Empty at generation. Implementer appends 1-3 bullet learnings after
-completing this major task. -->
+- Actions の SHA は `gh api repos/<o>/<r>/git/ref/tags/<tag>` で解決した（3 つとも軽量タグで、直接 commit を指す）。設計時に
+  24 時間未満だった mise-action v5.3.0 は実装時に 24 時間を超えたので、計画の候補 v5.2.10 でなく v5.3.0 を採用した（R-1）。
+- mise-action は `MISE_TRUSTED_CONFIG_PATHS` を checkout 先に設定し、`MISE_YES=1` と shims の PATH 追加も行う（固定した SHA の
+  `src/index.ts`）。CI に `mise trust` のステップは要らない。実際の挙動はタスク 12.5 の最初の CI 実行で確かめる。
+- `security` は lockfile だけで動く（`node_modules` なしの作業ツリーのコピーで終了コード 0）。`security-daily.yml` は install しない。
+- actionlint は計画に宣言がなく、ユーザーの判断で入れない。YAML の構文は `ruby -ryaml`、規則はテストで確かめた。
+- ワークフローの YAML を行単位で読むテストは、`- run:` と `  run:` の両方の書き方を受ける（最初の版は前者に一致しなかった）。
 
 ---
 
@@ -673,7 +724,7 @@ _Depends:_ 8
 _Requirements:_ 7.3, 7.4, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6
 _Traces:_ REQ-007, REQ-011, DES-1.9, DES-1.12, DES-1.14
 
-- [ ] 9.1 `mise.node27.toml` を、版の整合テストを先に書いて作り、install を試す
+- [x] 9.1 `mise.node27.toml` を、版の整合テストを先に書いて作り、install を試す
   - 先に `repo-policy.test.ts` に足す（**RED を確認**）: `mise ls --current --json` を、`source.path` がリポジトリの
     `mise.toml` / `mise.node27.toml` のものだけに絞って読む。既定レーンは子プロセスの環境から `MISE_ENV` を
     削除し、Node 27 レーンは `MISE_ENV=node27` を明示して照会する（CI の `verify-node27` は `MISE_ENV` を継承
