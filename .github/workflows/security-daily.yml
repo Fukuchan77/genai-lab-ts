@@ -1,0 +1,27 @@
+# Daily dependency vulnerability check (spec 001, requirement 10.5). A new advisory against a pinned
+# version is reported even on days when no one pushes. A failure shows as a failed run, which GitHub
+# notifies about. The actions are pinned like in ci.yml; see research.md R-1.
+name: security-daily
+
+on:
+  schedule:
+    - cron: "41 5 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  security:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          version: 2026.11.12
+      # osv-scanner and pnpm audit read pnpm-lock.yaml only, so no `pnpm install` is needed (measured
+      # locally on a copy of the work tree without node_modules; research.md R-4).
+      - run: mise run security

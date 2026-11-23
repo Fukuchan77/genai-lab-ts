@@ -1,0 +1,44 @@
+# Git hooks (spec 001, requirement 7). Each job runs the same check as the matching mise task, so the
+# hook and `mise run verify` / `mise run security` cannot drift apart. The hooks need mise active in
+# the shell: without it the tools are missing and the hook fails instead of silently passing.
+
+# A hook that cannot find lefthook must fail, not pass with a message (7.7, research.md I-4).
+assert_lefthook_installed: true
+
+# Fast checks on what is about to be committed. They run at the same time.
+pre-commit:
+  parallel: true
+  jobs:
+    # Staged changes only. --redact keeps a found value out of the output. --ignore-gitleaks-allow makes
+    # an inline `gitleaks:allow` comment useless, so a secret cannot be waved through (8.5).
+    - name: secrets
+      run: gitleaks git --pre-commit --staged --redact --ignore-gitleaks-allow --verbose
+    # Lint and format of the staged files only. The two flags keep Biome from failing on a commit that
+    # touches only files it does not handle (Markdown, lockfiles).
+    - name: biome
+      run: pnpm exec biome check --staged --no-errors-on-unmatched --files-ignore-unknown=true
+    # The whole project: a change in one file can break the types of another.
+    - name: typecheck
+      run: mise run typecheck
+    - name: model-ids
+      run: mise run check:model-ids
+
+# The subject line must follow Conventional Commits. {1} is the path of the message file.
+commit-msg:
+  jobs:
+    - name: conventional
+      run: node scripts/check-commit-msg.mjs {1}
+
+# Slower and stricter checks before anything leaves the machine. One after another, cheapest first;
+# the first failure stops the push. The two security jobs need the network.
+pre-push:
+  piped: true
+  jobs:
+    - name: osv-scanner
+      run: mise run security:osv
+    - name: pnpm-audit
+      run: mise run security:audit
+    - name: unit-tests
+      run: mise run test
+    - name: e2e-smoke
+      run: mise run e2e
