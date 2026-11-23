@@ -1,0 +1,5 @@
+# Node 27 alpha lane (spec 001, requirement 11). Enable it with MISE_ENV=node27; mise merges this file on
+# top of mise.toml, so only node changes and every other tool keeps its mise.toml version.
+# The version is exact and was published at least 24 hours before it was adopted (research.md R-1, R-8).
+[tools]
+node = "27.0.0-alpha.0.1.1"
