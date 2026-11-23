@@ -155,3 +155,21 @@ vite.config.ts.timestamp-*
 .nx/cache
 .nx/workspace-data
 .nx/migrate-runs
+
+# Editor settings
+.vscode/
+
+# AI coding agent
+.serena/
+
+# mise
+.mise/
+
+# Biome
+.biome/
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
