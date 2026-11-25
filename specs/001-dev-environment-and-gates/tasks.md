@@ -942,7 +942,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-007, REQ-008, REQ-009, REQ-010
 別モデルファミリー（Codex）による敵対的レビューは `/sdd-impl` が `.sdd/reviews/` に 1 ラウンド 1 ファイルで残す
 ので、本タスクの外で行う。
 
-- [ ] 12.1 オフライン・決定論・実行時間を実測し、README の手順を clean な作業用コピーで確かめる
+- [x] 12.1 オフライン・決定論・実行時間を実測し、README の手順を clean な作業用コピーで確かめる
   - ネットワークを切り（Wi-Fi を切る、または到達不能なプロキシ）、AI プロバイダの API キーを表す環境変数を1 つも設定しない状態で `mise run verify` を実行する。同一コミット・同一環境で 3 回連続で実行し、3 回とも同じ合否であること、各回の前後で `git status --porcelain` の出力が変わらないこと（verify が追跡ファイルを書き換えない）を確かめる（3.5、3.7、3.1）。**research.md への記録（R-3）は 3 回の実行をすべて終えてから行う**（編集で作業ツリーが変わり、確認が崩れないようにする）。
   - 実行時間を R-11 に記録する: pre-commit フック全体、pre-push フック全体、E2E `@smoke`、`mise run verify` 全体を、開発機で測る（CI の値はタスク 12.5 で追記）。pre-push の E2E smoke の 60 秒は目安で、TODO(E2E_BUDGET) が確定するまで合否に使わない。子プロセスを使うテストの timeout（初期値 60 秒）と `runCommand` の 30 秒を、実測の最大値と照らして見直し、変えた場合は理由を書く。
   - README のセットアップ手順を、コミット済みの HEAD から作った clean な作業用コピーで上から実行して通ることを確かめ、結果を Implementation Notes に書く（13.3）。
@@ -952,7 +952,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-007, REQ-008, REQ-009, REQ-010
   _Depends:_ 11.5, 10.4
   _Requirements:_ 3.1, 3.5, 3.7, 13.3
   _Traces:_ REQ-003, REQ-013, DES-1.3, DES-1.12
-- [ ] 12.2 ゲートの違反状態で、verify の構成要素が非 0 になることを記録する
+- [x] 12.2 ゲートの違反状態で、verify の構成要素が非 0 になることを記録する
   - 作業用コピーで、違反を 1 つずつ作って該当する構成要素の終了コードと出力の要点を R-9 に記録する（9.6、
     3.2）: (a) `test` の対象を 0 件にする（3.8）、(b) `@smoke` を全部 skip にする（3.9）、(c) E2E から外部
     オリジンへ未モックの要求を出す（3.11）、(d) 構成要素（lint・型・`check:model-ids`・`check:secrets`）を
@@ -966,7 +966,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-007, REQ-008, REQ-009, REQ-010
   _Depends:_ 12.1
   _Requirements:_ 3.2, 3.11, 3.12, 9.6
   _Traces:_ REQ-003, REQ-009, DES-1.12
-- [ ] 12.3 受け入れテストが非空虚であることを確認し、記録する
+- [x] 12.3 受け入れテストが非空虚であることを確認し、記録する
   - 本 spec の受け入れテストごとに、**対象の検査またはロジックを壊すとそのテストが失敗する**ことを作業用
     コピーで確かめ、壊した対象・壊し方・失敗の出力を R-10 に表で記録する（9.7）。対象: `sandbox.test.ts`、
     `network-guard.test.ts`、`gate-self-check.test.ts`、`gitleaks-pre-commit.test.ts`（`--staged` を外す、
@@ -983,7 +983,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-007, REQ-008, REQ-009, REQ-010
   _Depends:_ 12.2
   _Requirements:_ 2.4, 2.5, 8.8, 9.7
   _Traces:_ REQ-002, REQ-008, REQ-009, DES-1.12
-- [ ] 12.4 security の失敗系（到達不能・advisory）を実測する
+- [x] 12.4 security の失敗系（到達不能・advisory）を実測する
   - `pnpm audit` と osv-scanner を、registry・advisory の取得先に到達できない状態（プロキシを到達不能なポートに
     向ける、または `--offline` 相当）で実行し、終了コードを R-4 に記録する。**成功扱い（0）にならないこと**を
     確かめる（4.4）。0 になる場合は、担当タスク 7.2 を開き直し、その Boundary 内（`mise.toml`、`hooks-config.test.ts`）で構成のテストを先に直して`security:*` に失敗させる処理を足し、タスク 11.5 の追加コミットとして commit する。
@@ -1030,6 +1030,14 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-007, REQ-008, REQ-009, REQ-010
 
 ### Implementation Notes
 
-<!-- Empty at generation. Implementer appends 1-3 bullet learnings after
-completing this major task. -->
+- 12.1（2026-11-25）: README のセットアップ手順を、HEAD（8afb1f0）のローカル clone で上から実行した。`git clone` →
+  `mise trust && mise install` → `mise run setup`（`pnpm install --frozen-lockfile`、`playwright install chromium`、
+  `lefthook install` で 3 フック）→ `mise run verify` まですべて exit 0、作業ツリーは clean のまま（13.3）。worktree では
+  なく clone にしたのは、`mise run setup` の `lefthook install` が worktree だと実リポジトリと共有のフックを書き換えるため。
+  ネットワークの遮断は到達不能なプロキシで行った（`sandbox-exec` は権限で拒否）。子プロセスのテストの timeout は実際は
+  120 s で、tasks.md の「60 秒」と違う。最長 3.3 s のため変えていない（R-11）。
+- 12.1 の副産物: lefthook 2.2.2 の pre-push は、push するファイルが 1 つもないと `no matching push files` で全ジョブを
+  skip する（R-11）。ファイルを変えない push ではフックの検査が走らない。CI が同じ検査を持つ。
+- 12.2: (d4)・(e) は、開発機の管理された秘密値ブロックが偽の秘密値の commit を拒否したため手動では実施できず、
+  ユーザーの決定で `gitleaks-pre-commit.test.ts` の自動テストを証拠にした（R-9）。
 

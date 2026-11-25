@@ -612,11 +612,49 @@ New feature（full）。リポジトリにアプリコードがなく、ZIP 足�
   `12 commits scanned` / `no leaks found`。所要時間は約 10.6 秒（user 21.0s）。**ネットワークを切った実行と、3 回連続の
   実行は未実施**で、タスク 12.1 で行う。ここで確かめたのは、`verify` が参照するタスクの構成だけ
   （`verify-offline-contract.test.ts`）。
+
+  **オフライン・API キーなしの 3 回連続実行（タスク 12.1、2026-11-25、macOS 27.2 / Apple M2、コミット 8afb1f0）**:
+  - 作業用コピー: 実リポジトリの HEAD をローカルに `git clone` した使い捨てのコピー（スクラッチ領域。`mise run setup` の
+    `lefthook install` が worktree だと実リポジトリと共有のフックを書き換えるため、worktree ではなく clone にした）。
+  - ネットワークの遮断: Wi-Fi は切らず、タスク本文の代替手段（到達不能なプロキシ）を使った。`HTTP_PROXY`・`HTTPS_PROXY`・
+    `ALL_PROXY`（小文字も）と `npm_config_proxy`・`npm_config_https_proxy` を `http://127.0.0.1:9`（何も listen していない）に、
+    `NODE_USE_ENV_PROXY=1` で Node の `fetch` もプロキシを使わせ、`NO_PROXY=127.0.0.1,localhost` で E2E の Web サーバー
+    だけを通した。同じ環境で効き目を確かめた: `curl https://registry.npmjs.org/` は exit 7（`Failed to connect to 127.0.0.1
+    port 9`）、`node -e 'fetch("https://registry.npmjs.org/")'` は `ECONNREFUSED`。`sandbox-exec` での OS レベルの遮断は
+    このセッションの権限で拒否されたため使っていない。プロキシを無視して直接接続するプログラムはこの方法では止まらない
+    （unit はネットワークガード、E2E は外部オリジン遮断の fixture がそれぞれ別に止める）。
+  - API キー: `env -u` で、名前が `API_KEY`・`_TOKEN` を含む変数と `AI_PROVIDER`・`AI_MODEL`・`OLLAMA*` をすべて外した。
+    実行環境の中で名前に `API_KEY` を含む変数は 0 個（`compgen -e | grep -i API_KEY | wc -l` → 0）。
+  - 結果（`mise run verify`）:
+
+    | 回 | 終了コード | 所要 | 実行前後の `git status --porcelain` と HEAD | 要点 |
+    |----|-----------|------|---------------------------------------------|------|
+    | 1 | 0 | 24 s | 同一（0 行） | Biome 39 files、`check:model-ids` 39 files / 0 findings、gitleaks `21 commits scanned` / `no leaks found`、Vitest 11 files / 234 passed、`@smoke` 2 passed |
+    | 2 | 0 | 19 s | 同一（0 行） | 同上 |
+    | 3 | 0 | 19 s | 同一（0 行） | 同上 |
+
+    3 回とも同じ合否・同じ件数で、verify は追跡ファイルを書き換えなかった（3.1、3.5、3.7）。1 回目だけ遅いのは
+    `next typegen`・Next.js の初回コンパイルのキャッシュによる（2 回目以降 19 s で安定）。
 - **R-4 security の失敗系**（4.2〜4.4）: registry 到達不能時の `pnpm audit` / osv-scanner の終了コード。
 
   **正常系（タスク 7.2、2026-11-23、macOS、ネットワークあり）**: `mise run security` は終了コード 0。osv-scanner は
   `Scanned …/pnpm-lock.yaml file and found 173 packages`、`No issues found`。`pnpm audit --audit-level=high` は
-  `No known vulnerabilities found`。**失敗系（到達不能・advisory ありの終了コード）は未実施**で、タスク 12.4 で測る。
+  `No known vulnerabilities found`。失敗系（到達不能・advisory ありの終了コード）はタスク 12.4 で測った（下記）。
+
+  **失敗系（タスク 12.4、2026-11-25、macOS 27.2、コミット 8afb1f0 の使い捨て clone）**:
+
+  | 失敗系 | 作り方 | 実行 | 終了コード | 出力の要点 |
+  |--------|--------|------|-----------|------------|
+  | registry に到達できない（4.4） | `HTTP(S)_PROXY`・`ALL_PROXY`（小文字も）・`npm_config_(https_)proxy` を `http://127.0.0.1:9` に | `mise run security:audit` | 1（70 s） | `Failed to request the audit endpoint (at https://registry.npmjs.org/-/npm/v1/security/advisories/bulk)`、`Connection refused (os error 61)`、`[security:audit] ERROR task failed` |
+  | advisory の取得先に到達できない（4.4） | 同上 | `mise run security:osv` | 127（21 s） | `Post "https://api.osv.dev/v1/querybatch": proxyconnect tcp: dial tcp 127.0.0.1:9: connect: connection refused`（4 回の再試行の後）。`Total 0 packages affected …` と表示しても 0 にはならない |
+  | 同上（親タスク） | 同上 | `mise run security` | 127（17 s） | `security:osv` で止まり、`security:audit` は起動しない |
+  | high 以上の advisory（4.2） | `pnpm add --save-exact lodash@4.17.20`（2020 年公開。24h ゲートはそのまま。`package.json` 1 行、`pnpm-lock.yaml` 8 行の追加） | `mise run security:audit` | 1 | `4 vulnerabilities found`、`Severity: 2 moderate \| 2 high`（GHSA-r5fr-rjxr-66jc ほか） |
+  | 既知の脆弱性を持つ依存（4.3） | 同上 | `mise run security:osv` | 1 | lodash 4.17.20 に GHSA-29mw-wpgm-hmr9、GHSA-35jh-r3h4-6jhm、GHSA-r5fr-rjxr-66jc、GHSA-xxjr-mmjv-4gpg の 4 件 |
+
+  どの失敗系も 0 にならなかったので、タスク 7.2 を開き直す必要はない。osv-scanner の 127 は「一般的なエラー」、1 は
+  「脆弱性あり」を表し（公式の Return Codes 表 https://google.github.io/osv-scanner/output/ 、2026-11-25 確認）、到達不能と
+  検出を終了コードで区別できる。`pnpm audit` はどちらも 1 で、区別は出力による。
+  実験の後、clone を HEAD に戻して `pnpm install --frozen-lockfile`（`- lodash 4.17.20`）で元の依存に戻した。
 
   **lockfile だけで動くか（タスク 8.2、2026-11-23）**: `git ls-files --cached --others --exclude-standard -z` で作業ツリーのファイルだけを
   新しい一時ディレクトリにコピーし（`node_modules` は含まれない）、`mise trust` のあと `mise run security` を実行した。
@@ -859,6 +897,35 @@ New feature（full）。リポジトリにアプリコードがなく、ZIP 足�
   - 9.2 の commit は 5 件に分けた（tooling、src、tests・scripts、ci・hooks、spec 進捗）。`research.md` と `AGENTS.md` は残した。
     コミット前に `mise run verify` を実行し、終了コード 0、単体テスト 224/224、`@smoke` の E2E 2/2 を確認した。
 
+  **違反状態での verify の構成要素（タスク 12.2、2026-11-25、macOS 27.2、コミット 8afb1f0 の使い捨て clone）**。違反を 1 つずつ
+  作り、ケースごとに clone を HEAD に戻した（`git reset --hard` と `git clean -fd`。clone は R-3 と同じもの）。「起動した
+  タスク」は mise の `[<task>] $ …` の行から読んだ。
+
+  | ケース | 違反の作り方 | 実行 | 終了コード | 起動したタスク | 出力の要点 | 同じ違反を捕まえる自動テスト |
+  |--------|--------------|------|-----------|----------------|------------|------------------------------|
+  | (a) test の対象 0 件（3.8） | `git rm tests/unit/*.test.ts` | `mise run test` | 1 | test | `No test files found, exiting with code 1`、`no tests were executed`、`[test] ERROR task failed` | `gate-self-check.test.ts` (a)（ファイル 0 件）、(b)（todo のみ） |
+  | (b) `@smoke` を全部 skip（3.9） | 2 つの `*.smoke.spec.ts` の `test(` を `test.skip(` に | `mise run e2e` | 1 | e2e | `2 skipped`、`no tests were executed` | `gate-self-check.test.ts` (c)。`check` の Biome `noSkippedTests` も同じ変更を拒否する（R-10） |
+  | (c) E2E から外部オリジンへ未モックの要求（3.11） | `page.evaluate` で `fetch("https://example.com/")` する `@smoke` を追加 | `mise run e2e` | 1 | e2e | 追加した 1 件が `✘`、`Error: the test requested 1 external origin(s) without a mock: https://example.com. Mock the request with page.route instead.`。既存の 2 件は ✓ | `gate-self-check.test.ts` (e)、`network-guard.smoke.spec.ts` |
+  | (d1) lint | `src/lint-violation.ts` に `export const value: any = 1;` | `mise run verify` | 1 | check のみ | `lint/suspicious/noExplicitAny`、`Found 1 error.` | `static-analysis.test.ts`（Biome） |
+  | (d2) 型 | `src/type-violation.ts` に `export const value: number = "not a number";` | `mise run verify` | 2 | check、typecheck | `src/type-violation.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.` | `static-analysis.test.ts`（tsc） |
+  | (d3) モデル ID | allowlist の Anthropic の 1 件目を `src/model-id-violation.ts` に文字列で書いた（スクリプトは実行時に allowlist から読み、ID を持たない） | `mise run verify` | 1 | check、typecheck、check:model-ids | `src/model-id-violation.ts:1:23: <ID> (allowlist)` | `check-model-ids.test.ts` |
+  | (d4) 秘密値の履歴 | **未実施**（下記） | — | — | — | — | `gitleaks-pre-commit.test.ts`「check:secrets over the commit history」（一時リポジトリで commit し、非 0・RuleID あり・値なし） |
+  | (e) 検出値を出力しない（3.12） | **未実施**（下記） | — | — | — | — | 同上と、`check:secrets` から `--redact` を外す R-10 の行 |
+
+  (d1)〜(d3) は、どれも壊した構成要素で止まり、後続（`check:secrets`、`test`、`e2e`）は起動しなかった（3.2）。
+  (d4)・(e) の未実施の理由: 偽の GitHub トークンの形をした値を clone で `git -c core.hooksPath=/dev/null commit` しようとした
+  ところ、この開発機に管理者が導入している社外製の秘密値ブロック（Git の外側から commit を検査する仕組み）が commit を拒否した
+  （`COMMIT BLOCKED`、`detected GitHub personal access token`）。commit が作られないため `mise run verify` は exit 0
+  （`21 commits scanned`、`no leaks found`）で、違反状態を作れていない。出力に偽の値は含まれなかった（長さ 40 の値を
+  `grep -F` で検索して 0 件）。管理された統制を回避する操作は行っていない。
+  **ユーザーの決定（2026-11-25）**: (d4)・(e) は自動テストを証拠として受け入れる。`gitleaks-pre-commit.test.ts` の
+  「exits non-zero for a committed secret, names the rule, and never prints the value」が、隔離した一時リポジトリに偽の値を
+  commit して `check:secrets` の argv（`mise.toml` から読む）を実行し、非 0・`RuleID` あり・値なしを毎回の verify で確かめる。
+  非空虚であることは R-10 の `check:secrets` の `--redact` を外す行で示した。verify が失敗した構成要素で止まり後続を
+  実行しないこと（3.2）は、同じ直列チェーンの (d1)〜(d3) で示した。
+  付記: 単体テストの一時リポジトリは `GIT_CONFIG_GLOBAL=/dev/null`・`GIT_CONFIG_NOSYSTEM=1` で隔離しているため（`sandbox.ts`）、
+  その中の commit にはこの統制がかからない（`gitleaks-pre-commit.test.ts` が通るのはこのため）。
+
 - **R-10 非空虚の確認**（9.7）: 受け入れテストごとに、壊した対象、壊し方、失敗したことの出力。
 
   | テスト | 壊した対象 | 壊し方 | 失敗の出力（要点） | 確認日 |
@@ -1019,4 +1086,47 @@ New feature（full）。リポジトリにアプリコードがなく、ZIP 足�
   RED（実装前）: `Cannot find module './helpers/sandbox'` でスイートが失敗（2026-11-23）。
   `gate-self-check.test.ts` の RED（reporter 実装前）: (b) が `status should be non-zero: expected +0 not to be +0` で失敗、(a) は通った。
   `network-guard.test.ts` の RED（ガード実装前）: (a) が `status should be non-zero: expected +0 not to be +0` で失敗、(b) は通った。
+
+  **残りの行（タスク 12.3、2026-11-25、コミット 8afb1f0 の使い捨て clone、破壊ごとに clone を HEAD に戻した）**。上の表で
+  行がなかった項目と、`hooks-config.test.ts` の実行ケース（タスク 7.5、R-9）の再確認。
+
+  | テスト | 壊した対象 | 壊し方 | 失敗の出力（要点） | 確認日 |
+  |--------|-----------|--------|---------------------|--------|
+  | `gitleaks-pre-commit.test.ts`「keeps gitleaks on its default rules …（8.5）」 | リポジトリのルート | `.gitleaks.toml`（`[extend] useDefault = true`）を置いた | `.gitleaks.toml would make the hook and this test diverge: expected true to be false`。1 failed / 10 passed | 2026-11-25 |
+  | `repo-policy.test.ts` (g)「enables TypeScript strict mode (2.3)」 | `tsconfig.json` の `strict` | `true` を `false` にした | `expected false to be true`。1 failed / 45 passed（上の「未実施」の行を埋める） | 2026-11-25 |
+  | `hooks-config.test.ts` ケース 1（7.1） | 「registers the three hook files」の `lefthook install` | 呼び出しを消した | `pre-commit should be installed: expected false to be true`（R-9 の 7.5 の記録と同じ） | 2026-11-25 |
+  | `hooks-config.test.ts` ケース 2（7.7） | 「fails, naming gitleaks …」の環境 | `isolatedEnv({ pathDirs: [] })` を `isolatedEnv()`（ツールあり）にした | `…/.git/hooks/pre-commit: status should be non-zero: expected +0 not to be +0`（同上） | 2026-11-25 |
+  | `hooks-config.test.ts` ケース 3（7.7） | 「fails with a clear message …」 | `breakEmbeddedLefthookPath(dir)` を消した | `output: expected '…╭───…' to match /Can't find lefthook in PATH/`（lefthook が起動した。同上） | 2026-11-25 |
+  | `hooks-config.test.ts` ケース 3'（7.7） | `repoWithHook` の既定 | `assertInstalled ?? true` を `?? false` にした | 同じテストが `status should be non-zero: expected +0 not to be +0`（同上） | 2026-11-25 |
+  | `docs-structure.test.ts`（段の解説・README、タスク 11.1） | `docs/stages/1-…md` と `README.md` | 「改造する」を消す／「読む」と「動かす」を入れ替える／存在しない `tests/unit/nope.test.ts` を書く／`tests/` を `tezts/` にする／`Stage1.md` を足す／README から 3 つのコマンドを 1 つずつ消す | 順に `missing section …`、`sections are out of order`、`names tests/ paths that do not exist`、`names no tests/ path`、`does not match <n>-<slug>.md`、`README.md does not mention …`（PROVE の記録は `pdca/do.md` のタスク 11.1） | 2026-11-25 |
+
+  **一時ディレクトリの後始末（8.8、同日）**: Node の `os.tmpdir()`（`/var/folders/…/T`）直下の `genai-lab-test-*` を数えた。
+  `gitleaks-pre-commit.test.ts` の成功の実行（11 passed）の前後とも 0 件。`lefthook.yml` の secrets ジョブから `--redact` を外して
+  一時リポジトリの中で 2 件を失敗させた実行（`the output leaked a secret of length 40` ほか、2 failed / 9 passed）の前後とも
+  0 件。一時リポジトリがこのディレクトリに作られていること自体は、`hooks-config.test.ts` の失敗の出力のパス
+  （`/var/folders/…/T/genai-lab-test-OzuTT2/.git/hooks/pre-commit`）で確かめた。削除は `createTempGitRepo` の
+  `onTestFinished` が、テストの成否に関係なく行う。
+  **静的解析の違反で非 0（2.4、2.5）**: 上の表の `static-analysis.test.ts` の行（`strict`、各ルールの `off`）と、R-9 の
+  (d1)・(d2)（verify が `check`・`typecheck` で exit 1・2 になり止まる）。
 - **R-11 実行時間**（NFR）: pre-commit 全体、pre-push 全体、E2E `@smoke`、verify 全体（開発機と CI）。
+
+  **開発機（タスク 12.1、2026-11-25、macOS 27.2 / Apple M2 8 コア、コミット 8afb1f0 の clean な clone）**。壁時計の時間。
+
+  | 対象 | 所要 | 内訳・条件 |
+  |------|------|------------|
+  | pre-commit 全体（`lefthook run pre-commit`） | 1.3 s | `.tsx` 1 ファイルを stage。並列の 4 ジョブ: secrets 0.45 s、model-ids 0.48 s、biome 0.59 s、typecheck 0.98 s |
+  | pre-push 全体（`lefthook run pre-push --force`） | 19.5 s | 直列: osv-scanner 1.42 s、pnpm-audit 0.51 s、unit-tests 14.32 s、e2e-smoke 2.97 s。ネットワークあり |
+  | E2E `@smoke`（`mise run e2e`） | 3.5 s | 2 passed（Playwright の表示 2.5〜3.0 s）。目安の 60 s に対して十分に短い（TODO(E2E_BUDGET) は未確定のため合否に使わない） |
+  | `mise run verify` 全体 | 19〜24 s | R-3 の 3 回（オフライン）。1 回目 24 s、2・3 回目 19 s |
+  | `mise run test` | 14.3 s | 234 件。Vitest の `Duration` 14.5〜15.2 s |
+
+  - `--force` を付けた理由: clone の origin は実リポジトリで、同じコミットを指すため、素の `lefthook run pre-push` は
+    `no matching push files` で 4 ジョブすべてを **skip** し、0.11 s・exit 0 で終わった。lefthook 2.2.2 の pre-push は、push する
+    ファイルが 1 つもないとジョブを実行しない（`--force` の説明は `do not skip if no files changed`）。ファイルの変更を含む
+    通常の push では実行される（タスク 7.5 の `lefthook run pre-push` は 4 ジョブとも実行）。ファイルを変えない push
+    （空のコミットだけ、または既にリモートにあるコミットの push）ではフックの検査が走らない。CI の `verify` ジョブは
+    push ごとに `verify` と `security` を実行するので、検査そのものは抜けない。
+  - 子プロセスを使うテストの timeout: 実際の設定は `describe` ごとに 120 s（tasks.md の「初期値 60 秒」より長い）、
+    `runCommand` は 30 s（`tests/unit/helpers/sandbox.ts` の `timeoutMs ?? 30_000`）。1 件あたりの最長は 3.3 s
+    （`gitleaks-pre-commit.test.ts`「refuses a commit that contains a secret …」）、次いで 3.2 s（`gate-self-check.test.ts` (e)）、
+    2.6 s（`hooks-config.test.ts` の対照ケース）。どちらの上限にも 9 倍以上の余裕があるので**変えない**。

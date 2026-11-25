@@ -558,3 +558,24 @@ Implementation log written by `/sdd-impl`. Evidence (commands, outputs, PROVE re
 - Commits: 6e87c68 (guide, README, docs tests, Node 27 record), 7d509b7 (constitution 1.1.0, steering, review),
   5479cd9 (AGENTS.md, plan 000), and this progress commit. Every commit ran pre-commit (model-ids, secrets, biome,
   typecheck) and commit-msg (conventional), all green. Not pushed.
+
+### Tasks 12.1–12.4: final measurements — 12.1, 12.3, 12.4 done; 12.2 partly blocked
+- Working copy: a local `git clone` of HEAD 8afb1f0 in the scratchpad, not a worktree: `mise run setup` runs
+  `lefthook install`, which in a worktree would rewrite the hooks shared with the real repository. Reset to HEAD
+  (`reset --hard` + `clean -fd`) between cases; the real working tree was never touched by an experiment.
+- 12.1: offline = unreachable proxy (127.0.0.1:9, `NODE_USE_ENV_PROXY=1`, localhost exempt); `sandbox-exec` was denied by the
+  session's permissions. Canary: curl exit 7, node fetch ECONNREFUSED. No `*API_KEY*` variable in the env. `mise run verify`
+  ×3: exit 0, 24 s / 19 s / 19 s, porcelain and HEAD identical before and after each run, 234/234 unit, 2/2 `@smoke`.
+  README setup steps all exit 0 in the clone. Timings in R-11; test timeouts (120 s / 30 s) kept, max test 3.3 s.
+- Surprise: `lefthook run pre-push` skipped every job (`no matching push files`) because the clone's origin has the same
+  commits; `--force` was needed for the timing (19.5 s). Recorded in R-11 as a limit of the hook, covered by CI.
+- 12.2: (a) test 0 files → 1, (b) all `@smoke` skipped → 1, (c) unmocked example.com fetch → 1 with the guard's message,
+  (d1) lint → 1 stops after check, (d2) types → 2 stops after typecheck, (d3) model ID → 1 stops after check:model-ids.
+  (d4)/(e) blocked: a machine-managed secret-blocking control outside git rejected the fake-secret commit even with
+  `core.hooksPath=/dev/null`, so no violation existed and verify was 0. Not circumvented; waiting for the user.
+- 12.3: new R-10 rows — `.gitleaks.toml` at root, `strict: false` for repo-policy (g), hook cases 1/2/3/3' re-broken (same
+  messages as 7.5), docs-structure rows linked to 11.1's PROVE. 8.8: `genai-lab-test-*` count 0 before/after both a passing
+  and a failing (`--redact` removed) run of gitleaks-pre-commit.test.ts.
+- 12.4: unreachable → audit 1 (70 s, retries), osv 127 (general error per the official Return Codes table), `security`
+  127 and stops before audit; lodash 4.17.20 → audit 1 (2 high), osv 1 (4 GHSAs). No reopening of 7.2 needed.
+- 12.2 decision (user): accept gitleaks-pre-commit.test.ts as the evidence for (d4)/(e); 12.2 marked done.
