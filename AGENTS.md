@@ -7,13 +7,16 @@ skills one stage at a time, from LLM calls up to tool calling with approval. It 
 on-ramp to `from-genai-to-agentic-ai`. Every test must pass deterministically without API
 keys or network access.
 
-## Current state (2026-11-22)
+## Current state (2026-11-25)
 
-Planning is done; no application code exists yet. Stage 1 (spec 001) imports the
-scaffold and creates `mise.toml`, `package.json`, `lefthook.yml`, the CI workflows, and
-`src/` / `tests/`. Until then, the commands below are the planned interface from
-[specs/000-development-plan/plan.md](specs/000-development-plan/plan.md). Once spec 001
-lands, check them against the real `mise.toml` and update this file.
+Stage 1 ([spec 001](specs/001-dev-environment-and-gates/spec.md), development environment
+and gates) is implemented on the branch `feat/dev-environment-and-gates` and is still in
+progress until its PR is merged into `main`. It brings the foundation only: the toolchain
+and dependency pins (`mise.toml`, `mise.node27.toml`, `package.json`, `pnpm-lock.yaml`),
+the git hooks (`lefthook.yml`), the CI workflows, a placeholder page, the model ID
+allowlist, the gate scripts in `scripts/`, and tests that check the gates themselves. No
+AI code exists yet; stages 2 and later add it. The commands below are the tasks that
+`mise tasks ls` lists.
 
 ## Sources of truth
 
@@ -33,51 +36,80 @@ mise-managed tools from `PATH`, so mise must be active in the shell.
 
 | Purpose | Command |
 | --- | --- |
-| Full gate: lint, format check, typecheck, security, tests | `mise run verify` (`mise run gate` is an alias) |
-| Lint / format only | `mise run check` |
-| Security scans (gitleaks full history, osv-scanner, pnpm audit) | `mise run security` |
-| Unit tests | `mise run test` |
-| E2E tests | `mise run e2e` |
+| Offline gate: lint / format check, typecheck, model IDs, secret scan, unit tests, E2E smoke | `mise run verify` (`mise run gate` is an alias) |
+| Dependency vulnerability scans that need the network: osv-scanner, then `pnpm audit --audit-level=high` | `mise run security` (runs `security:osv`, then `security:audit`) |
+| Lint / format check only (Biome, no writes) | `mise run check` |
+| Typecheck (`next typegen`, then `tsc --noEmit`) | `mise run typecheck` |
 | Hard-coded model ID check | `mise run check:model-ids` |
-| Dependency update candidates | `mise run outdated` |
+| Secret scan of the history reachable from `HEAD` (gitleaks, values redacted) | `mise run check:secrets` |
+| Unit tests (Vitest) | `mise run test` |
+| E2E smoke tests (Playwright, `@smoke` only) | `mise run e2e` |
+| Dependency update candidates (writes nothing; exits 1 when there are candidates) | `mise run outdated` |
 | Print runtime versions (for records, not pass/fail) | `mise run runtime` |
+| First setup after cloning: frozen install, test browser, git hooks | `mise run setup` |
 | Single unit test file / test name | `pnpm exec vitest run tests/unit/<subject>.test.ts` / `pnpm exec vitest run -t "<name>"` |
-| E2E smoke tests (what pre-push runs) | `pnpm exec playwright test --grep @smoke` |
 | Node 27 alpha lane | `MISE_ENV=node27 mise install`, then `MISE_ENV=node27 mise run verify` |
 
-`mise run verify` must stay offline, deterministic, and non-empty. Zero executed tests is
-a failure: never enable `passWithNoTests`. Unmocked network access fails the test.
+`mise run verify` runs its steps one after another and stops at the first failure:
+`check` → `typecheck` → `check:model-ids` → `check:secrets` → `test` → `e2e`. It must
+stay offline, deterministic, and non-empty. Zero executed tests is a failure: never
+enable `passWithNoTests`. Unmocked network access fails the test.
+
+Checks that need the network are not in `verify`; they live in `mise run security`. Both
+sets still run before code lands: the pre-push hook runs `security` together with
+`verify`'s unit and E2E tests, and the required CI job runs all of `verify` and then
+`security`, so the split removes no check.
 
 ### Git hooks (lefthook)
 
-- pre-commit (parallel): `gitleaks git --pre-commit --staged --redact`, Biome on staged
-  files, `tsc --noEmit`, `check:model-ids`.
-- commit-msg: Conventional Commits.
-- pre-push (serial, cheapest first): osv-scanner, `pnpm audit --audit-level=high`,
-  Vitest, Playwright `@smoke`.
+- pre-commit (parallel): `gitleaks git --pre-commit --staged --redact
+  --ignore-gitleaks-allow` on the staged changes, Biome on staged files,
+  `mise run typecheck`, `mise run check:model-ids`.
+- commit-msg: Conventional Commits (`scripts/check-commit-msg.mjs`).
+- pre-push (serial, cheapest first, stops at the first failure): `mise run security:osv`,
+  `mise run security:audit`, `mise run test`, `mise run e2e`. The two security jobs need
+  the network.
 
-CI runs the same `mise run verify`, so a hook skip never removes a check. Skip a hook
-only after showing the failure is environmental (it reproduces on the base branch), and
-record the skip in the PR body.
+`lefthook.yml` sets `assert_lefthook_installed: true`, so a hook that cannot find lefthook
+fails instead of passing.
 
-## Architecture (planned)
+### CI (GitHub Actions)
+
+- `ci.yml`, job `verify` (required): `mise run runtime`, `mise run verify`,
+  `mise run security`, then fails if tracked files changed.
+- `ci.yml`, job `verify-node27` (informational, `continue-on-error`, also weekly):
+  `mise run verify` with `MISE_ENV=node27`.
+- `security-daily.yml`: `mise run security` every day.
+
+CI runs the same mise tasks as the hooks, so a hook skip never removes a check. Skip a
+hook only after showing the failure is environmental (it reproduces on the base branch),
+and record the skip in the PR body.
+
+## Architecture
 
 One Next.js App Router app. UI and route handlers live in `src/app/`. Server-side AI
 logic lives in `src/lib/ai/`, one concept per file. `app` may import `lib`; `lib` never
-imports `app`.
+imports `app`. Gate scripts live in `scripts/`. As of stage 1, `src/` holds only the
+placeholder page (`src/app/layout.tsx`, `src/app/page.tsx`) and
+`src/lib/ai/model-allowlist.ts`.
 
-Several concepts have exactly one place where they are defined, and a check enforces it:
+Several concepts have exactly one place where they are defined, and a check enforces it.
+Only the first row exists today; the other rows are planned and arrive with their stage:
 
-| Concept | Defined only in | Enforced by |
-| --- | --- | --- |
-| Model IDs | `src/lib/ai/model-allowlist.ts` | `check:model-ids` (test fixtures excepted) |
-| Provider/model selection (`AI_PROVIDER`, `AI_MODEL`) | `src/lib/ai/model.ts` | Zod validation at startup |
-| Agent construction | `createGuardedAgent` in `src/lib/ai/agent.ts` | repo scan rejecting other `new ToolLoopAgent` |
-| Input limits and rate limiting (stage 8) | `src/lib/ai/limits.ts` | 400 / 413 / 429 tests |
+| Concept | Defined only in | Enforced by | Status |
+| --- | --- | --- | --- |
+| Model IDs | `src/lib/ai/model-allowlist.ts` | `check:model-ids` (test fixtures excepted) | in place (stage 1) |
+| Provider/model selection (`AI_PROVIDER`, `AI_MODEL`) | `src/lib/ai/model.ts` | Zod validation at startup | planned (stage 6) |
+| Agent construction | `createGuardedAgent` in `src/lib/ai/agent.ts` | repo scan rejecting other `new ToolLoopAgent` | planned (stage 5) |
+| Input limits and rate limiting | `src/lib/ai/limits.ts` | 400 / 413 / 429 tests | planned (stage 8) |
 
-Tests live in `tests/unit/` (Vitest with `ai/test` mock models) and `tests/e2e/`
-(Playwright that mocks `/api/chat` as a UI message stream via `page.route`). Never put
-tests next to the sources.
+Tests live in `tests/unit/` (Vitest) and `tests/e2e/` (Playwright). Never put tests next
+to the sources. E2E tests import `test` and `expect` from `tests/e2e/fixtures.ts`, whose
+network guard fails a test that requests another origin. Shared test code lives in
+`tests/unit/setup/` (network guard, zero-test reporter), `tests/unit/helpers/`, and
+`tests/fixtures/` (inputs for the gate self-checks). Planned from the stages that add AI
+code: unit tests use `ai/test` mock models, and E2E tests mock `/api/chat` as a UI message
+stream via `page.route`.
 
 ### Stage layout
 
@@ -133,6 +165,12 @@ verification notes go to `docs/node27/YYYY-MM-DD-<topic>.md`.
 - Base claims about library APIs, versions, and model IDs on official docs plus an actual
   install and run, and record the evidence in the stage's `research.md`. AI SDK 7,
   TypeScript 7.1 beta, and Next.js canary often differ from what older write-ups say.
+- Next.js ships its docs for the installed version in `node_modules/next/dist/docs/`. Read
+  the relevant guide there before writing Next.js code, and heed its deprecation notices:
+  this canary has breaking changes in APIs, conventions, and file structure.
+- Raise the Next.js version through the weekly `mise run outdated` and a `build(deps):`
+  commit, not through `next upgrade`. `next.config.ts` sets `agentRules: false` and
+  `experimental.agentUpgrade: false`, so `next dev` does not rewrite this file.
 
 ## Process
 
