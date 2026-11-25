@@ -740,7 +740,7 @@ _Traces:_ REQ-007, REQ-011, DES-1.9, DES-1.12, DES-1.14
   _Depends:_ 8.1, 8.2, 8.3
   _Requirements:_ 11.1, 11.2, 11.3
   _Traces:_ REQ-011, DES-1.14
-- [ ] 9.2 ここまでの実装をコミットする（チェックポイント。ユーザーの確認つき）
+- [x] 9.2 ここまでの実装をコミットする（チェックポイント。ユーザーの確認つき）
   - `git status` で未コミットの変更を確かめ、コミットの分け方を示してユーザーの確認を得てから commit する。Conventional Commits（英語）で、版上げは `build(deps):`。憲章・steering・`AGENTS.md`・`.sdd/reviews/` は タスク 11.5 まで残してよい。push はしない。
   - 実リポジトリで pre-commit と commit-msg が実際に起動することを確かめ、R-9 に記録する: 不正な形式の commit メッセージが拒否され、正しい形式なら commit できる。pre-commit の `secrets`・`biome`・`typecheck`・`model-ids` が通る（7.3、7.4）。フックが落ちた場合は、落ちた検査を持つタスクを開き直し、そのタスクの Boundary 内で直す（この task の Boundary では直さない）。
   - 完了条件: `git log` に Conventional Commits 形式の commit があり、タスク 11.5 まで残すと決めたファイルと、この task が R-9 を書いた research.md を除いて `git status --porcelain` が空。
@@ -748,7 +748,7 @@ _Traces:_ REQ-007, REQ-011, DES-1.9, DES-1.12, DES-1.14
   _Depends:_ 9.1
   _Requirements:_ 7.3, 7.4
   _Traces:_ REQ-007, DES-1.9
-- [ ] 9.3 Node 27 レーンで verify を実行し、初回の検証記録を書く
+- [x] 9.3 Node 27 レーンで verify を実行し、初回の検証記録を書く
   - 先に `tests/unit/docs-structure.test.ts` の Node 27 記録部分を書く（**RED を確認**）: `docs/node27/*.md` が
     見出し「結論 / 検証した版 / 通したゲート / 未解決事項 / 再現手順」を持つ（11.5）。stage 解説の部分はタスク
     11.1 で足す。
@@ -786,7 +786,7 @@ ZIP のアプリコード（`route.ts`、`page.tsx`、`agent.ts`、`extract-task
 ディレクトリに置く。展開したファイルは信頼できないデータとして扱い、`-I` なしの Python や展開先をカレント
 ディレクトリにした実行をしない。
 
-- [ ] 10.1 ZIP を展開し、共有依存を C1 と同じ版に、残りを 24h を満たす最新の exact 版に置き換えて install する
+- [x] 10.1 ZIP を展開し、共有依存を C1 と同じ版に、残りを 24h を満たす最新の exact 版に置き換えて install する
   - 新しい空の一時ディレクトリに `~/Downloads/genai-lab.zip` を展開する。`package.json` の dist-tag と範囲を、
     タスク 1.2 と同じ版（共有する依存）と、24h を満たす最新の exact 版（AI SDK、プロバイダ、Zod、
     `@vitejs/plugin-react`）に置き換える。`pnpm-workspace.yaml` はタスク 1.2 と同じ規則にする
@@ -797,7 +797,7 @@ ZIP のアプリコード（`route.ts`、`page.tsx`、`agent.ts`、`extract-task
   _Depends:_ 4.4
   _Requirements:_ 1.9, 12.1
   _Traces:_ REQ-012, REQ-001, DES-1.15
-- [ ] 10.2 型検査と、AI SDK 7 の API 名の有無を記録する
+- [x] 10.2 型検査と、AI SDK 7 の API 名の有無を記録する
   - `pnpm exec tsc --noEmit` を実行し、**ファイルごと**の型エラーを R-6 に記録する。AI SDK 7 の実際の型との
     差異を、引き継ぎ先の段（003〜006）とともに書く（12.2）。
   - `node_modules/ai` の型定義で、`toolApproval`、`isStepCount`、`toUIMessageStream`、
@@ -810,7 +810,7 @@ ZIP のアプリコード（`route.ts`、`page.tsx`、`agent.ts`、`extract-task
   _Depends:_ 10.1
   _Requirements:_ 12.1, 12.2, 12.3
   _Traces:_ REQ-012, DES-1.15
-- [ ] 10.3 ZIP のテストと E2E smoke を実行し、SSE モックの解釈を記録する
+- [x] 10.3 ZIP のテストと E2E smoke を実行し、SSE モックの解釈を記録する
   - `pnpm exec vitest run` と `pnpm exec playwright test --grep @smoke` を実行し、結果と出力の要点を R-6 に
     記録する。SSE モックが `useChat` のパーサーで解釈されたかどうかを、画面上の描画または要求の記録を根拠に
     書く（12.4、plan §8 の 4 項目目）。失敗した場合は原因（型の差異、モックの形式、パーサーの変更など）と
@@ -823,7 +823,7 @@ ZIP のアプリコード（`route.ts`、`page.tsx`、`agent.ts`、`extract-task
   _Depends:_ 10.2, 9.1
   _Requirements:_ 12.1, 12.4
   _Traces:_ REQ-012, DES-1.15
-- [ ] 10.4 使い捨て環境を削除し、ZIP のコードがリポジトリに入っていないことを確かめる
+- [x] 10.4 使い捨て環境を削除し、ZIP のコードがリポジトリに入っていないことを確かめる
   - 使い捨て環境のディレクトリを削除する。リポジトリで `git ls-files` と `git status --porcelain` を実行し、
     `src/app/api/`、`src/lib/ai/agent.ts`、`extract-task.ts`、`model.ts`、`tests/unit/agent-approval.test.ts`、
     `tests/unit/extract-task.test.ts`、`tests/e2e/chat.smoke.spec.ts` が存在しないことを確かめ、結果を R-6 に
@@ -836,8 +836,12 @@ ZIP のアプリコード（`route.ts`、`page.tsx`、`agent.ts`、`extract-task
 
 ### Implementation Notes
 
-<!-- Empty at generation. Implementer appends 1-3 bullet learnings after
-completing this major task. -->
+- 自動判定（auto mode）は、使い捨て環境の `pnpm install` / `pnpm exec` と `rm` も拒否した。開発者の手元で実行して出力を貼ってもらった。
+  貼り付けの取り違え（`tsc` の欄に install の出力が入った）は、起きた前提で記録し、補う証拠（`tsbuildinfo`、`mtime`）を R-6 に書いた。
+- ZIP のテストが失敗したら、まず `test-results/*/error-context.md` を読む。`@smoke` の赤は、型でもモックでもなく `getByRole('alert')` が
+  Next の route announcer と重なったロケーターの曖昧さだった。`next dev` は使い捨て環境の `tsconfig.json` も書き換える。
+- 「削除した」と書く記録は、削除を確かめてから書く（R-6 に先に書いて直した）。pnpm 12 の `Agent skills awaiting approval` は peer 警告でも
+  install スクリプトでもない新しい通知で、段 2 に引き継いだ。
 
 ---
 
@@ -851,7 +855,7 @@ _Traces:_ REQ-001, REQ-011, REQ-012, REQ-013, DES-1.1, DES-1.16, DES-3.1
 11.1〜11.3 は書くファイルが重ならず、いずれも実在する構成（9.3 まで完了）を前提にする。文書中の版番号は
 「確認日つきの参考値」と明記し、合否の条件にしない（13.12）。散文は日本語、`AGENTS.md` は英語。
 
-- [ ] 11.1 (P) 段 1 の解説と README を、構造テストを先に書いて作る
+- [x] 11.1 (P) 段 1 の解説と README を、構造テストを先に書いて作る
   - 先に `tests/unit/docs-structure.test.ts` の解説部分を足す（**RED を確認**）: `docs/stages/*.md` が「読む →
     動かす → 改造する → テストで合格を確かめる」の順の見出しを持つ（13.1）。本文中の `tests/…` のパスが
     すべて実在する（13.2）。`README.md` に `mise activate`、`mise run setup`、`git worktree add` の記述がある（13.3、11.7）。
@@ -872,7 +876,7 @@ _Traces:_ REQ-001, REQ-011, REQ-012, REQ-013, DES-1.1, DES-1.16, DES-3.1
   _Depends:_ 9.3
   _Requirements:_ 11.7, 13.1, 13.2, 13.3, 13.4, 13.12
   _Traces:_ REQ-011, REQ-013, DES-1.16
-- [ ] 11.2 (P) 憲章を MINOR 改訂し、steering を実際の構成に合わせる
+- [x] 11.2 (P) 憲章を MINOR 改訂し、steering を実際の構成に合わせる
   - `.sdd/memory/constitution.md`: 原則 3 を「verify はオフラインで決定論的な検査、ネットワークが必要な検査は
     security タスクに分け、pre-push と CI 必須ジョブが両方を実行する」内容に改訂する（1.0.0 → 1.1.0）。同じ
     改訂で、Additional Constraints の Node のレーンを「Node 27 alpha は `mise.node27.toml`（`MISE_ENV=node27`）と
@@ -889,7 +893,7 @@ _Traces:_ REQ-001, REQ-011, REQ-012, REQ-013, DES-1.1, DES-1.16, DES-3.1
   _Depends:_ 9.3
   _Requirements:_ 13.7, 13.9, 13.12
   _Traces:_ REQ-013, DES-1.16, DES-3.1
-- [ ] 11.3 (P) `AGENTS.md` と全体計画に、本 spec の決定を反映する
+- [x] 11.3 (P) `AGENTS.md` と全体計画に、本 spec の決定を反映する
   - `AGENTS.md`（英語）: コマンド表を実在する `mise.toml` のタスク（`verify`・`gate`・`check`・`security`・`test`・
     `e2e`・`check:model-ids`・`outdated`・`runtime`・`setup`）と一致させ、"Current state" を段 1 完了後の状態に
     更新する。Architecture の "(planned)" のうち実在するものを直す。`mise run verify` と `mise run security` の
@@ -903,14 +907,14 @@ _Traces:_ REQ-001, REQ-011, REQ-012, REQ-013, DES-1.1, DES-1.16, DES-3.1
   _Depends:_ 9.3
   _Requirements:_ 13.8, 13.10, 13.12
   _Traces:_ REQ-013, DES-1.16
-- [ ] 11.4 採用版を最終確認し、TypeScript 7.1 の公開状況を再確認する
+- [x] 11.4 採用版を最終確認し、TypeScript 7.1 の公開状況を再確認する
   - 採用した全依存・ツール・Actions・Node 27 alpha の版が、確認日の時点でも公開から 24 時間以上であることを R-1 の表で再確認し（1.3）、TypeScript 7.1 の RC / stable の公開状況を再確認して R-7 を更新する。24 時間以上経った RC / stable があれば、タスク 1.2 の手順で`package.json`・`pnpm-lock.yaml` をその版に切り替えて `mise run verify` を通し直し、R-7 に記録する（12.5、12.6）。切り替えは タスク 11.5 のコミットに含める。
   - 完了条件: R-1 と R-7 に確認日がある。切り替えた場合は `mise run verify` が緑。
   _Boundary:_ `package.json`, `pnpm-lock.yaml`, `specs/001-dev-environment-and-gates/research.md`
   _Depends:_ 9.3, 11.1, 11.2, 11.3
   _Requirements:_ 1.3, 12.5, 12.6
   _Traces:_ REQ-001, REQ-012, DES-1.1
-- [ ] 11.5 解説・統治文書を含めてコミットする（チェックポイント。ユーザーの確認つき）
+- [x] 11.5 解説・統治文書を含めてコミットする（チェックポイント。ユーザーの確認つき）
   - タスク 9.2 のコミットの後に増えた変更を、内容を変えずに本 spec のブランチへコミットする（13.11）: 憲章（1.1.0）、steering、`AGENTS.md`、`.sdd/reviews/`、解説・README・`docs-structure.test.ts`、`docs/node27/` の記録、計画 000 の改訂、research.md の R-n（タスク 9.x〜11.4 で追記した分）、タスク 11.4 で版を切り替えた場合の `package.json`・`pnpm-lock.yaml`、SDD の進捗（`specs/001-dev-environment-and-gates/` の `tasks.md`・`traceability.md`・`spec.json`）。コミットの分け方を示してユーザーの確認を得る。pre-commit の各ジョブが通ることを確かめる。push はしない。
   - 完了条件: `git status --porcelain` が空。
   _Boundary:_ `.sdd/memory/constitution.md`, `.sdd/steering/tech.md`, `.sdd/steering/structure.md`, `AGENTS.md`, `specs/000-development-plan/plan.md`, `docs/stages/1-dev-environment-and-gates.md`, `README.md`, `tests/unit/docs-structure.test.ts`, `docs/node27/<YYYY-MM-DD>-initial-lane.md`, `package.json`, `pnpm-lock.yaml`, `specs/001-dev-environment-and-gates/research.md`

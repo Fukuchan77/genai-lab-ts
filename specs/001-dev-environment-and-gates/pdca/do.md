@@ -450,3 +450,111 @@ Implementation log written by `/sdd-impl`. Evidence (commands, outputs, PROVE re
 - The install printed an npm install-scripts warning (esbuild, fsevents). Its source is the developer's
   `~/.default-npm-packages`, not this repository.
 - PROVE: three breaks (a second tool, a range, the Node 26 version) each fail the matching cases (R-10).
+
+### Task 9.2: commit checkpoint — done
+- User approved a 5-commit grouping. Commits: 9958028 (tooling), 07d728e (src), 50b949d (tests, scripts),
+  addd4bb (lefthook, .github), 4073d84 (tasks.md, do.md). `AGENTS.md` and `research.md` left uncommitted
+  (11.5). The task text excludes `research.md` from the clean-tree condition, so it was not in commit 5.
+- The commit-msg hook refused `bad message without type` with exit 1 (no commit created). Every commit then
+  ran pre-commit (`model-ids`, `secrets`, `biome`, `typecheck`) and `conventional`, all green. The full
+  record is in research.md R-9.
+- One denied command (auto-mode classifier) chained three `git add`/`commit` steps; it changed nothing
+  (checked with `git log`/`git status`). Retried one commit per call.
+- Before committing: `mise run verify` exit 0 (224/224 unit, 2/2 `@smoke`).
+
+### Task 9.3: Node 27 lane verification — done (verify red on the lane, recorded)
+- RED: `tests/unit/docs-structure.test.ts` (3 cases) failed with `docs/node27/ has no .md record`.
+- Worktree `../genai-lab-ts-node27` at 4073d84, `MISE_ENV=node27`: mise install (node v27.0.0-alpha.0.1.1),
+  `pnpm install --frozen-lockfile` (node_modules not shared), `playwright install chromium`.
+- `mise run verify` on Node 27 → exit 1. Two separate causes:
+  1. `test`: 223/224. `repo-policy.test.ts` "keeps the guidance of the removed block in AGENTS.md" fails because
+     the worktree (from the commit) does not have the uncommitted AGENTS.md change. Same failure on Node 26 in
+     that worktree. With the main-tree AGENTS.md copied in, Node 27 gives 224/224 (control).
+  2. `e2e`: Next.js dev server throws `TypeError: rawHeaders.hasOwnProperty is not a function` on every
+     request; Playwright times out in webServer after 60 s; 0 tests executed. Node 26 in the same worktree
+     gives 2/2. Cause not confirmed (see docs/node27 record, 未解決事項 1).
+- Node 27 passes `check`, `typecheck`, `check:model-ids`, `check:secrets`, and `security`.
+- Record: docs/node27/2026-11-23-initial-lane.md (five headings). Task says failure still satisfies the spec.
+- RED → GREEN → PROVE: 3 cases green; breaks (drop a heading, swap order, bad file name) each fail the
+  matching assertion; restored and checked with `diff -q` against a copy.
+- Worktree removed (`git worktree list` shows only the main tree). Main tree: `mise run test` 227/227,
+  `mise run check` exit 0.
+- Tasks 9.3 marked [x]. Per the task file, the record is a valid checkpoint even though verify is not green.
+
+### Tasks 10.1-10.3: ZIP verification in a disposable environment — done (R-6, R-2)
+- Environment: ZIP unpacked under `$TMPDIR` (outside the repo). `package.json` pinned to exact versions (ai 7.0.179,
+  @ai-sdk/* 4.0.107-4.0.124 / openai-compatible 3.0.94 / react 4.0.183, zod 4.6.7, plugin-react 6.3.0), each the newest
+  version at least 24 h old at 2026-11-22T13:42Z (@ai-sdk/react 4.0.184 was 15 h old, so not used). `pnpm-workspace.yaml` copied
+  from the repo (no `minimumReleaseAgeExclude`). Shared deps use the repo pins.
+- The auto-mode classifier denied `pnpm install` / `pnpm exec`, so the developer ran them and pasted the output
+  (same arrangement as tasks 1.2 and 7.5). An unrun helper script I had written was deleted rather than used to get around the denial.
+- `pnpm install`: +93 packages, no peer warning, no `Ignored build scripts`. New in pnpm 12: `Agent skills awaiting approval: ai.`
+  (`ai` ships a `skills/` directory). `pnpm approve` was not run; handed to stage 2.
+- `tsc --noEmit`: no output, exit 0. The pasted block held two `exit=0` lines and the install output, not tsc's own output,
+  so "no output" is an interpretation, supported by `tsbuildinfo` with 0 diagnostics. `tsc` ran against the `tsconfig.json` that
+  `next dev` had already rewritten (allowJs, esModuleInterop, `.next/dev/types`). Recorded in R-6.
+- API names: all 9 present in `ai@7.0.179` types (checked in the `npm pack` tarball) and in the official docs (Context7 `/vercel/ai`).
+  Two non-blocking differences: `system:` is `@deprecated` for `instructions:`; the `StreamTextResult` method form of
+  `toUIMessageStream` is deprecated in favour of the standalone function the ZIP already uses.
+- vitest 4/4 green. Playwright `@smoke`: 1 green (the SSE mock was parsed by `useChat` and rendered), 1 red.
+  Red cause (from `error-context.md`): `getByRole('alert')` matched both the page's `<p role="alert">` and Next's
+  `#__next-route-announcer__`. The retry UI works; the ZIP test's locator is ambiguous. Handed to stage 3.
+- Mistake caught before writing: I first wrote "deleted in task 10.4" into R-6 before the deletion happened, then corrected it.
+
+### Task 10.4: cleanup — done
+- Repo check: none of the 7 ZIP paths is tracked or present; `git status` shows no ZIP file; `git worktree list` shows only the main tree.
+  `git ls-files -- src/lib/ai` returns `model-allowlist.ts` only (task 5.1's file, not ZIP code).
+- The classifier denied `rm`, so the developer deleted the three `$TMPDIR` directories. Verified afterwards with `ls -d`: all three
+  report `No such file or directory`. R-6 updated.
+- Task 10 complete (10.1-10.4). Next checkpoint: task 11.5 commit; 11.1-11.3 can run in parallel (wave B).
+
+### Task 11.1: stage 1 guide and README — done
+- RED: `tests/unit/docs-structure.test.ts` gained 7 cases (stage guide count / name / four sections in order /
+  existing `tests/` paths; README shows `mise activate`, `mise run setup`, `git worktree add`). 4 failed:
+  `docs/stages/ has no .md guide` and the three README commands. The Node 27 assertion now uses the shared
+  `headingIndices` helper (same behaviour: 3/3 still green, and the break below still fails it).
+- GREEN: `docs/stages/1-dev-environment-and-gates.md` (読む / 動かす / 改造する / テストで合格を確かめる; per pass condition
+  the test paths from the task text; exercises: copy an allowlisted ID into `page.tsx` → `check:model-ids` exit 1, `it.skip`
+  → `noSkippedTests`, a staged fake key in a temp repo → gitleaks non-zero). README rewritten in Japanese (setup, hooks fail
+  without mise, command table, `pnpm outdated` exit 1, Node 27 worktree steps from 9.3, Dependabot security updates outside
+  cooldown, governance links). No model ID strings; version numbers only as dated reference values (13.12).
+- Two claims corrected before GREEN after reading the code: gitleaks prints `RuleID` and hides the value (not a literal
+  `REDACTED` string asserted anywhere), and `gate-self-check.test.ts` covers zero-executed and external-origin failures
+  (lint/type violations are `static-analysis.test.ts`).
+- PROVE (8 breaks, each restored and checked with `diff -q`): drop 改造する → `missing section ... [0, 1, -1, 3]`; swap
+  読む/動かす → `sections are out of order`; add `tests/unit/nope.test.ts` → `names tests/ paths that do not exist`;
+  `tests/`→`tezts/` → `names no tests/ path`; extra `Stage1.md` → `does not match <n>-<slug>.md`; README without each of the
+  three commands → `README.md does not mention ...`. After restore: 10/10.
+
+### Tasks 11.2 / 11.3: governance documents — done (delegated, one subagent per task, disjoint boundaries)
+- 11.2: constitution 1.0.0 → 1.1.0 (principle 3 split verify/security; Node lane sentence per 13.7; principle 8 gitleaks
+  placement aligned to verify, an addition beyond the task text for consistency — flagged to the user). Sync Impact
+  Report ✅ for AGENTS.md / plan 000 / README after 11.1 and 11.3 finished. `grep -n "exp/node27"` → lines 11, 236, 283,
+  all the new wording. steering tech.md / structure.md aligned with `mise tasks ls`.
+- 11.3: AGENTS.md command table = `mise tasks ls` (plus typecheck, check:secrets, setup); hooks and CI subsections from
+  `lefthook.yml` / `ci.yml`; Current state 2026-11-25 (not merged). plan 000: revision notes in §4, §7 M1, §8.5,
+  Constitution Compliance linking spec 001 Clarifications. Subagent checks: check, check:model-ids, repo-policy 46/46 green.
+- Spot-checked against files: constitution version lines, `fetch-depth: 0`, weekly cron, `continue-on-error`.
+
+### Task 11.4: final version check — done, no switch
+- 2026-11-25T11:52Z: every pinned npm package, pnpm, node (26, 27 alpha), lefthook, gitleaks, osv-scanner, both Actions
+  and mise re-queried; all ≥ 24 h, publish times unchanged; Action tag SHAs unchanged. Shortest: next canary.60 (83.9 h).
+- TypeScript: `beta` = 7.1.0-beta, no 7.1 RC/stable. Kept beta; `package.json` / lockfile untouched. R-1 and R-7 updated.
+
+### Review and gate (tasks 11.1–11.4)
+- Risk triggers script: `boundary: docs/node27/2026-11-23-initial-lane.md` only (task 9.3's uncommitted file, not task 11).
+  Untracked test refactor (trigger 3) found by hand. Codex unavailable (`Missing environment variable: ICA_OPENAI_API_KEY`)
+  → sdd-reviewer fallback, report `.sdd/reviews/001-dev-environment-and-gates-11.md`.
+- `mise run verify` exit 0: check 39 files, model-ids 0 findings, gitleaks no leaks, 234/234 unit, 2/2 `@smoke`.
+- Review fixes (MEDIUM): pre-push scope wording in README / guide / steering, `--verbose` and repo argument in
+  Exercise 3, `unset MISE_ENV` in the Node 27 steps; offline claims marked as design, measured in 12.1 / 12.4.
+  Re-run after fixes: `mise run check` exit 0, `mise run test` 234/234, `check:model-ids` 0 findings.
+- Not verified end to end: the `gitleaks git ... <temp-repo>` form of Exercise 3 (a temp-repo run was denied); the
+  form comes from `gitleaks git --help` (`gitleaks git [flags] [repo]`).
+
+### Task 11.5: commit checkpoint — done
+- User decisions: keep the principle 8 change; commit in the proposed 4 groups. Principle 3 pre-push wording (13.7
+  text) left as written.
+- Commits: 6e87c68 (guide, README, docs tests, Node 27 record), 7d509b7 (constitution 1.1.0, steering, review),
+  5479cd9 (AGENTS.md, plan 000), and this progress commit. Every commit ran pre-commit (model-ids, secrets, biome,
+  typecheck) and commit-msg (conventional), all green. Not pushed.
