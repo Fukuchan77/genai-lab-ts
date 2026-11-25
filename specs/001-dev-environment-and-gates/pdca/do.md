@@ -585,3 +585,7 @@ Implementation log written by `/sdd-impl`. Evidence (commands, outputs, PROVE re
 - CI run 45614530248: `verify` success in 78 s (verify 18 s, security 0.6 s, playwright install 40 s); `verify-node27`
   failed on E2E with the same `rawHeaders.hasOwnProperty` error as the macOS record, unit 234/234; workflow success.
 - Linux external-request block: `network-guard.smoke.spec.ts` passed in the verify job. R-8, R-9, R-11 updated.
+
+### Task 12.6: ruleset — done (user approved)
+- `protect-main` enforcement disabled → active; added required_status_checks [verify] (integration 15368). Existing rules,
+  conditions and empty bypass list kept. Read back with gh api; PR #2 mergeStateStatus UNSTABLE (node27 only). R-9 updated.

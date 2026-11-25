@@ -1008,7 +1008,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-007, REQ-008, REQ-009, REQ-010
   _Depends:_ 11.5, 12.3, 12.4
   _Requirements:_ 1.8, 3.11, 7.5, 7.6, 10.1, 10.3, 10.4, 10.6, 10.7, 11.4, 13.11
   _Traces:_ REQ-001, REQ-003, REQ-007, REQ-010, REQ-011, REQ-013, DES-1.13
-- [ ] 12.6 ruleset `protect-main` に必須チェック `verify` を加える
+- [x] 12.6 ruleset `protect-main` に必須チェック `verify` を加える
   - CI の `verify` ジョブが一度緑になった後に行う（実装順の制約 4）。現在の ruleset の内容と、
     `required_status_checks` に `verify` を加えた差分を示し、**ユーザーの確認を得てから**適用する。
   - 適用後、`gh api` で ruleset の内容を取得し、必須チェックに `verify` があること（`verify-node27` は含めない）を

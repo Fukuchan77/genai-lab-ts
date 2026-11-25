@@ -952,6 +952,16 @@ New feature（full）。リポジトリにアプリコードがなく、ZIP 足�
     chromium on Linux でも `context.route` が別オリジンの要求を止めている。`gate-self-check.test.ts` (e)（teardown で失敗する
     経路）も同じジョブの 234 件に含まれて通った。
 
+  **ruleset `protect-main` の必須チェック（タスク 12.6、2026-11-25、ユーザーの確認を得て適用）**: 適用前は
+  `enforcement: disabled`、rules は `deletion`・`non_fast_forward`・`pull_request`（承認 0）、`required_status_checks` なし
+  （I-13 と同じ）。`gh api -X PUT repos/<owner>/<repo>/rulesets/27838452` で、既存の rules・`conditions`（`~DEFAULT_BRANCH`）・
+  `bypass_actors`（空）をそのまま残し、`enforcement: active` と `required_status_checks`（`context: verify`、`integration_id:
+  15368`。PR の check run の `app.id` が 15368 / `github-actions` であることを先に確認）を加えた。
+  適用後の `gh api …/rulesets/27838452`: `enforcement: active`、rules は `deletion`、`non_fast_forward`、`pull_request`、
+  `required_status_checks: [{context: verify, integration_id: 15368}]`。必須チェックは `verify` だけで、`verify-node27` は
+  含まない（10.2）。PR #2 の `mergeStateStatus` は `UNSTABLE`（必須でない `verify-node27` の失敗だけ。`verify` は SUCCESS）。
+  有効化で、既定ブランチの削除・force push の禁止と PR の必須も効き始めた。bypass はない。
+
 - **R-10 非空虚の確認**（9.7）: 受け入れテストごとに、壊した対象、壊し方、失敗したことの出力。
 
   | テスト | 壊した対象 | 壊し方 | 失敗の出力（要点） | 確認日 |
