@@ -2,8 +2,9 @@
 
 コードの置き方のパターン。ファイルツリーを列挙せず、パターンと例を残す。
 
-> 状態（2026-11-22）: コード未作成。以下は spec 000 の計画（§5、§8.5）に基づく予定の構成で、
-> 段 1 で足場を取り込んだあとに実物と照合して更新する。
+> 状態（2026-11-25 確認）: 段 1（spec 001）で足場を取り込み、下表を実物と照合した。`src/` は
+> プレースホルダーのページと `src/lib/ai/model-allowlist.ts` だけで、`src/lib/ai/` のほかのファイル
+> （`model.ts`、`agent.ts`、`limits.ts` など）は後続の段で作る予定の置き場である。
 
 ## Organization Pattern
 
@@ -26,7 +27,10 @@ tests/unit/agent-approval.test.ts  # 合格判定テスト（解説から参照�
 | `src/app/` | App Router のページとルートハンドラ（例: `api/chat/route.ts`） |
 | `src/lib/ai/` | LLM 呼び出し・構造化出力・エージェント・プロバイダ・上限などのサーバー側ロジック |
 | `tests/unit/` | Vitest。モックモデルでロジックを検証 |
-| `tests/e2e/` | Playwright。`/api/chat` を SSE モックして UI フローを検証 |
+| `tests/unit/setup/` | Vitest の実行設定から読む部品: 未モック通信を失敗させるガード（`network-guard.ts`）、実行 0 件を失敗にするレポーター（`require-executed-tests.ts`） |
+| `tests/unit/helpers/` | テスト間で共有する補助（`sandbox.ts`: 一時 git リポジトリ、ツールの絶対パス解決、隔離した環境変数、子プロセスの実行） |
+| `tests/e2e/` | Playwright。`/api/chat` を SSE モックして UI フローを検証。`test` / `expect` は外部通信を遮断する `fixtures.ts` から import し、`reporters/` に実行 0 件を失敗にするレポーターを置く |
+| `tests/fixtures/` | テストが入力として使うファイル。`gate/` はゲートの自己検査（`gate-self-check.test.ts`、`network-guard.test.ts`）が入れ子の Vitest / Playwright で実行する fixture と専用設定で、通常の `mise run test` / `mise run e2e` の対象には含めない |
 | `scripts/` | 実行用の小さなスクリプトとリポジトリ検査（例: `check-model-ids.mjs`、`hello.ts`） |
 | `docs/stages/` | 段ごとの解説 |
 | `docs/node27/` | Node 27 alpha の検証記録（1 検証 1 ファイル） |
@@ -77,4 +81,6 @@ tests/unit/agent-approval.test.ts  # 合格判定テスト（解説から参照�
 - 新しいルート / ページ → `src/app/`（ルートハンドラは境界で Zod 検証する）
 - リポジトリ全体の規約検査（禁止 API・モデル ID の走査など）→ `scripts/` か `tests/unit/` の走査テスト
 - テスト → `tests/unit/`（Vitest）または `tests/e2e/`（Playwright）。ソースの隣には置かない
+- テストの共有補助 → `tests/unit/helpers/`。全テストに効く実行設定（ガード、レポーター）→ `tests/unit/setup/`。
+  テストの入力にするだけのファイル → `tests/fixtures/`（`*.test.ts` / `*.spec.ts` の名前を付けない）
 - 段の範囲外になった内容 → 実装せず、卒業先の該当モジュールへのリンクを解説に書く

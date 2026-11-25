@@ -4,8 +4,10 @@
 MUST / MUST NOT の正本は [.sdd/memory/constitution.md](../memory/constitution.md)。ここでは
 その原則を「どう書くか」の形で示す。
 
-> 状態（2026-11-22）: 計画確定・コード未作成。下表の版は設計時点の参考値で、正本は
-> `mise.toml`、`package.json`、`pnpm-lock.yaml`（段 1 で作成）。版番号を合否に使わない。
+> 状態（2026-11-25 確認）: 段 1（spec 001）で足場を取り込み済み（`mise.toml`、`mise.node27.toml`、
+> `package.json`、`lefthook.yml`、CI、`src/` / `tests/` の基盤）。AI SDK・Zod・shadcn/ui は後続の段で
+> 導入する。下表の版は確認日つきの参考値で、正本は `mise.toml`、`package.json`、`pnpm-lock.yaml`。
+> 版番号を合否に使わない。
 
 ## Stack
 
@@ -33,15 +35,25 @@ MUST / MUST NOT の正本は [.sdd/memory/constitution.md](../memory/constitutio
 - **E2E は pre-push に smoke 1〜2 本、残りは CI** — `@smoke` タグで選ぶ（D5）。
 - **モデル ID は allowlist だけ** — `src/lib/ai/model-allowlist.ts` を唯一の定義とし、
   `check:model-ids` で直書きを検出する。
-- **Node 27 は分離検証** — main は Node 26 LTS が必須 CI。Node 27 は `continue-on-error` で、
-  専用の修正は `exp/node27` に置く。
+- **Node 27 は分離検証** — main は Node 26 LTS が必須 CI。Node 27 alpha は `mise.node27.toml`
+  （`MISE_ENV=node27`）と CI の `verify-node27`（`continue-on-error`）で分離検証する。`exp/node27` は
+  Node 27 でだけ必要な修正が生じた時点で作る（憲章 Additional Constraints）。
 
 ## Conventions
 
 - **Commands**: `mise run <task>` → `pnpm exec <cmd>` の順。素のツールを直接実行しない。
-- **Gate command**: `mise run verify`（lint・format チェック・typecheck・セキュリティ・テスト）。
-  `mise run gate` は `verify` の別名として定義する。フックと CI は同じものを実行する。
-- **Preflight command**: なし（段 1 で必要性を判断）。フックは mise を有効にした環境が前提。
+- **Gate command**: `mise run verify`（別名 `mise run gate`）。オフラインで決定論的な検査を
+  `check`（Biome の lint・format チェック）→ `typecheck`（`next typegen` → `tsc --noEmit`）→
+  `check:model-ids` → `check:secrets`（gitleaks、HEAD から到達できる全履歴）→ `test`（Vitest）→
+  `e2e`（Playwright `@smoke`）の順に実行し、最初の失敗で止まる。
+- **Security command**: `mise run security`（`security:osv` → `security:audit`）。ネットワークが必要な
+  `osv-scanner` と `pnpm audit --audit-level=high` で、verify には含めない（憲章 原則 3）。CI の必須ジョブ
+  `verify` は verify と security の両方を実行するので、分離で検査は減らない。手元のフックは、pre-commit が
+  lint・型・モデル ID・staged の秘密値を、pre-push が security と単体テスト・E2E smoke を実行する。フックの
+  各ジョブは対応する mise タスクと同じ検査を呼ぶ。
+- **Preflight command**: なし（段 1 では設けない）。clone 後は `mise run setup`（lockfile からの install、
+  テスト用ブラウザ、フックの登録）。補助タスクは `runtime`（版の記録、合否なし）と `outdated`（更新候補の
+  一覧）。フックは mise を有効にした環境が前提。
 - **Typing**: TS `strict`。`any`（Biome `noExplicitAny`）と根拠のない型アサーションを入れない。
   Biome の `noUnusedVariables` / `noUnusedImports` / `noExplicitAny` は `error`。
 - **Boundaries**: HTTP リクエスト・環境変数・ツール入力・LLM 構造化出力は Zod で検証する。
@@ -73,15 +85,20 @@ MUST / MUST NOT の正本は [.sdd/memory/constitution.md](../memory/constitutio
 
 - 依存とツールは exact pin。`latest` / `canary` / `beta` タグや範囲指定を使わない。
 - install スクリプトは既定で遮断し、`allowBuilds` で許可するものには理由を記す。
-- CI は `--frozen-lockfile`、`osv-scanner`、`pnpm audit --audit-level=high` を通す。
+- CI は `--frozen-lockfile`、`osv-scanner`、`pnpm audit --audit-level=high` を通す（`mise run security`。
+  CI の verify ジョブと毎日の `security-daily` で実行）。
 - GitHub Actions の `uses:` はコミット SHA で固定し、ジョブごとに `permissions:` を最小にする。
-- gitleaks は pre-commit（ステージ済み、`--redact`）と CI（全履歴、`fetch-depth: 0`）で実行する。
-  `gitleaks dir` は使わない。
+- gitleaks は 2 か所で実行する。pre-commit はステージ済みの変更だけ
+  （`gitleaks git --pre-commit --staged --redact`）。verify の `check:secrets` は HEAD から到達できる全履歴
+  （`gitleaks git --redact --log-opts=HEAD`。CI は `fetch-depth: 0` で取得）。gitleaks 既定の `git log --all`
+  は他のブランチや stash も読み、結果が ref の有無で変わるため使わない。どちらも `--ignore-gitleaks-allow`
+  で行内の許可コメントを無効にする。`gitleaks dir` は使わない。
 - 新しい第三者依存・CI ジョブ・外部サービスは、plan に宣言してから追加する（憲章 原則 10）。
 
 ## Constraints
 
 - `mise run verify` は API キーとネットワークを必要としない。同一コミットで常に同じ合否を返す。
+  ネットワークが必要な検査は `mise run security` に置き、到達できないときは失敗させる。
 - API キーは環境変数からのみ、サーバー側でのみ参照する。`.env.example` は変数名だけを置く。
 - `AI_PROVIDER` / `AI_MODEL` は allowlist 内の値だけを受け付け、不正値は起動時に Zod で拒否する。
 - 段 8 以降、`/api/chat` は rate limit → body size → strict schema の順でモデル呼び出し前に拒否し、

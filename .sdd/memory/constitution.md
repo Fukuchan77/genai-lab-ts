@@ -1,22 +1,25 @@
 <!--
 SYNC IMPACT REPORT
-Version Change: N/A → 1.0.0（初版制定）
+Version Change: 1.0.0 → 1.1.0（MINOR。spec 001 Clarifications 2026-11-22 / 2026-11-23、要件 13.7）
+  経緯: 1.0.0（2026-11-22、初版制定）
 Modified Principles:
-  - none（初版）
+  - 原則 3: verify（= gate）をオフラインで決定論的な検査に限り、ネットワークが必要な検査を
+    `mise run security` に分ける。pre-push と CI の必須ジョブが両方を実行し、検査は減らない
+  - 原則 8: gitleaks の全履歴スキャンの置き場を verify（HEAD から到達できる履歴）に合わせて明確化
+Modified Sections:
+  - Additional Constraints「Node のレーン」: Node 27 alpha の分離検証は `mise.node27.toml` と CI の
+    `verify-node27` で行い、`exp/node27` は Node 27 でだけ必要な修正が生じた時点で作る、と明確化
 Added Sections:
-  - Core Principles（原則 1〜11）
-  - Additional Constraints
-  - Governance
-  - 改訂履歴 / 未決事項
+  - none
 Removed Sections:
   - none
 Templates Status:
-  ✅ ~/.claude/sdd/templates/specs/plan.md - Constitution Compliance 節があり、変更不要
-  ✅ ~/.claude/sdd/templates/specs/spec.md, tasks.md - 確認のみ、変更不要
-  ✅ README.md - 本憲章へのリンクを追加
-  ⚠️ AGENTS.md - 未作成。spec 001 の /sdd-steering で作成し、原則の要約と `mise run verify` を載せる
-  ⚠️ specs/000-development-plan/plan.md - §8.5 の mise.toml タスク一覧に `gate`（`verify` の別名）が
-     ない。「Constitution Compliance」節は「憲章がまだない」と書かれたまま。spec 001 の plan で反映する
+  ✅ ~/.claude/sdd/templates/specs/plan.md, spec.md, tasks.md - 確認のみ、変更不要
+  ✅ .sdd/steering/tech.md, structure.md - 同じ変更で verify / security の分離と実際の構成に合わせた
+  ✅ AGENTS.md - コマンド表（verify と security の分離）と "Current state" を spec 001 タスク 11.3 で同期した
+  ✅ specs/000-development-plan/plan.md - §4・§7 M1・§8.5・Constitution Compliance に改訂注記を
+     spec 001 タスク 11.3 で入れた
+  ✅ README.md - コマンド一覧（verify と security）を spec 001 タスク 11.1 で同期した
 Deferred Items:
   - TODO(BRANCH_COVERAGE): 分岐カバレッジのしきい値（spec 001〜002 の実測ベースラインで決定）
   - TODO(E2E_BUDGET): pre-push の E2E smoke の時間上限（plan §4 の目安 60 秒を、spec 003 の実測で確定）
@@ -67,12 +70,18 @@ Deferred Items:
 
 ### 3. 品質ゲートは 1 つで、決定論的で、空振りしない
 
-`mise run verify` は lint、format チェック、typecheck、セキュリティ検査、テストを 1 コマンドで実行する
-唯一の検証入口であることが MUST である。`mise run gate` は `verify` の別名として定義し、同じ処理を
-実行する。
+`mise run verify` は、オフラインで決定論的な検査（lint と format チェック、typecheck、`check:model-ids`、
+gitleaks による HEAD から到達できる全履歴のシークレットスキャン、ユニットテスト、E2E smoke）を 1 コマンドで
+実行する唯一の検証入口であることが MUST である。`mise run gate` は `verify` の別名として定義し、同じ処理を
+実行する。ネットワークが必要な検査（`osv-scanner`、`pnpm audit --audit-level=high`）は `mise run security`
+に分け、verify に含めてはならない（MUST NOT）。
 
-- lefthook のフックと CI は同じ `mise run verify`（またはその構成要素）を実行する。フックは
-  `--no-verify` で回避できるため、CI の verify ジョブを省略してはならない（MUST NOT）。
+- lefthook のフックと CI は、verify と security と同じ mise タスク（またはその構成要素）を実行する。
+  pre-push と CI の必須ジョブ（`verify`）は verify の検査と security の**両方**を実行し、分離によって検査を
+  減らしてはならない（MUST NOT）。フックは `--no-verify` で回避できるため、CI の verify ジョブを省略しては
+  ならない（MUST NOT）。
+- security はレジストリや脆弱性データベースに到達できないときに失敗する。到達できないことを合格として
+  扱ってはならない（MUST NOT）。
 - verify は API キーとネットワークを必要としない。未モックのネットワークアクセス（Vitest の
   `fetch`、Playwright の未定義ルート）はテストを失敗させる。
 - 同一コミットでは常に同じ合否を返す。不安定なテストはリトライやスキップで隠さず、原因を直す。
@@ -84,8 +93,9 @@ Deferred Items:
 **根拠**: 「API キーなしで全テストが決定論的に通る」ことは本ラボの前提である。空振りの緑は、壊れた
 教材を合格させる。
 
-**検証**: CI の verify ジョブ（必須）、`vitest.config.ts` / `playwright.config.ts` の未モック通信の遮断、
-`/sdd-impl` の RED 確認記録。
+**検証**: CI の verify ジョブ（必須。`mise run verify` と `mise run security` を実行）、verify の構成を
+検査するテスト（`tests/unit/verify-offline-contract.test.ts`）、`vitest.config.ts` /
+`playwright.config.ts` の未モック通信の遮断、`/sdd-impl` の RED 確認記録。
 
 ### 4. テストを先に書く
 
@@ -157,7 +167,8 @@ RED（失敗を確認）→ GREEN（最小実装）→ REFACTOR の順序を守�
   せず、変数名だけの `.env.example` を提供する。
 - 生のプロンプト、ツール引数の値、秘密情報をログに出力しない。シークレットスキャンは `--redact` で
   検出値を出力しない。
-- gitleaks を pre-commit（ステージ済み変更）と CI（全履歴、`fetch-depth: 0`）で実行する。
+- gitleaks を pre-commit（ステージ済み変更）と verify（HEAD から到達できる全履歴。CI は `fetch-depth: 0`）
+  で実行する。
   `gitleaks dir` をシークレットスキャンに使ってはならない（MUST NOT）。
 - 依存は公開から 24 時間未満の版を採用しない（`minimumReleaseAge: 1440`）。プレリリースを含め
   `minimumReleaseAgeExclude` で除外してはならない（MUST NOT、D3）。
@@ -221,7 +232,8 @@ CI ジョブ、外部サービス、インフラの追加も同じ規律に従�
 フックは mise 管理のツールを PATH から呼ぶため、mise を有効にした環境を前提とする（README に明記）。
 
 **Node のレーン**: 既定は Node 26 LTS（`mise.toml`）で、必須 CI とする。Node 27 alpha は
-`mise.node27.toml`（`MISE_ENV=node27`）と `exp/node27` で分離検証し、CI では `continue-on-error` とする。
+`mise.node27.toml`（`MISE_ENV=node27`）と CI の `verify-node27` で分離検証し、CI では `continue-on-error`
+とする。`exp/node27` は Node 27 でだけ必要な修正が生じた時点で作る。
 Node 27 でだけ必要な修正は Node 26 で壊れないことを確認してから main に入れる。検証結果は失敗を含めて
 `docs/node27/YYYY-MM-DD-<topic>.md` に 1 検証 1 ファイルで残す。
 
@@ -268,6 +280,7 @@ UI message stream（SSE）のモックを使う。pre-push の E2E は `@smoke` 
 | 版 | 日付 | 種別 | 主な変更内容 |
 | :--- | :--- | :--- | :--- |
 | 1.0.0 | 2026-11-22 | 初版 | spec 000 の全体計画（§2.1 版方針、§4 ゲート、§5 共通ルール、D1〜D6）から原則 1〜11 を制定。Additional Constraints / Governance を新設 |
+| 1.1.0 | 2026-11-25 | MINOR | 原則 3 を改訂: verify（= gate）はオフラインで決定論的な検査に限り、ネットワークが必要な `osv-scanner` / `pnpm audit` は `mise run security` に分ける。pre-push と CI 必須ジョブが両方を実行するため検査は減らない（spec 001 Clarifications 2026-11-22）。原則 8 の gitleaks の置き場を verify（HEAD から到達できる履歴）に合わせて明確化。Additional Constraints の Node のレーンを、分離検証は `mise.node27.toml` と CI の `verify-node27` で行い、ブランチ `exp/node27` は Node 27 でだけ必要な修正が生じた時点で作る、と明確化（同 2026-11-23）。要件 13.7 |
 
 ### 未決事項（Deferred）
 
@@ -278,6 +291,6 @@ UI message stream（SSE）のモックを使う。pre-push の E2E は `@smoke` 
 
 ---
 
-**Version**: 1.0.0 |
+**Version**: 1.1.0 |
 **Ratified**: 2026-11-22 |
-**Last amended**: 2026-11-22
+**Last amended**: 2026-11-25
