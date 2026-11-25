@@ -1,0 +1,21 @@
+{
+  "feature_name": "001-dev-environment-and-gates",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "created_at": "2026-11-22T12:05:52Z",
+  "updated_at": "2026-11-23T02:00:50Z",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    }
+  }
+}

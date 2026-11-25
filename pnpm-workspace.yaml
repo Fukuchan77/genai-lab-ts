@@ -1,0 +1,19 @@
+# pnpm settings (pnpm-specific settings live here, not in .npmrc).
+# Supply-chain gates: see specs/001-dev-environment-and-gates/research.md (I-8, R-1, R-2).
+
+# A version must be at least 24h (1440 minutes) old. Never add minimumReleaseAgeExclude.
+minimumReleaseAge: 1440
+# Explicit although both are pnpm defaults, so the gate does not weaken if a default changes.
+minimumReleaseAgeStrict: true
+strictDepBuilds: true
+
+# `pnpm add` writes exact versions (no ^ or ~).
+savePrefix: ""
+
+# Install scripts are blocked unless listed here. Every dependency that has one is listed with a reason.
+# As of the first install (2026-11-23) no dependency ran an install script and pnpm reported no
+# "Ignored build scripts", so nothing is allowed.
+allowBuilds:
+  # sharp (a dependency of next) is only used for next/image optimization, which this lab does not
+  # use. Its install script stays blocked (spec 001, requirement 1.5).
+  sharp: false

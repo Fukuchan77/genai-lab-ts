@@ -138,6 +138,15 @@ lefthook を採用する（D4）。pre-commit は数秒で終わる並列ゲー�
 - pre-push の E2E が 60 秒を超えるようになったら、smoke を 1〜2 本に絞るか CI 側へ移す。
 - `mise run security` は全履歴の `gitleaks git` を含み、CI は `fetch-depth: 0` で実行する。
 
+> **改訂注記（2026-11-25、spec 001）**: [spec 001 の Clarifications](../001-dev-environment-and-gates/spec.md#clarifications)
+> （2026-11-22 の 2 問目と plan レビュー後の決定）により、gitleaks の全履歴スキャンは `security` から
+> `verify` に移った。`verify`（= `gate`）のタスク `check:secrets` が、HEAD から到達できる履歴だけを走査する
+> （`--log-opts=HEAD`。CI は引き続き `fetch-depth: 0`）。`security` はネットワークが必要な
+> `security:osv`（osv-scanner）と `security:audit`（`pnpm audit --audit-level=high`）だけになり、`verify` には
+> 含まない。pre-push は `security:osv` → `security:audit` → `test` → `e2e` を、CI の必須ジョブは `verify` と
+> `security` の両方を実行するので、検査は減らない。上の表の typecheck・pre-push の各ジョブは、実装では
+> 対応する `mise run <task>` を呼ぶ（spec 001 plan の ADR-2）。正本は `lefthook.yml` と `mise.toml`。
+
 ---
 
 ## 5. 学習ロードマップ（段の設計）
@@ -186,6 +195,12 @@ sdd-tdd-kit のパイプラインで段ごとに進める。
 | M2 | 002〜003 | 段 2〜3: LLM 呼び出しの基礎、ストリーミング UI | 各段の合格条件テストが緑 |
 | M3 | 004〜006 | 段 4〜6: 構造化出力、ツールと承認、プロバイダ抽象化 | 同上 |
 | M4 | 007〜008 | 段 7〜8: テストと簡易評価、安全性と卒業、README のロードマップ表 | 全段が緑。from-genai-to-agentic-ai 側にも本ラボへのリンクを提案 |
+
+> **改訂注記（2026-11-25、spec 001）**: [spec 001 の Clarifications](../001-dev-environment-and-gates/spec.md#clarifications)
+> （2026-11-22 の 4 問目と 2026-11-23 の決定）により、M1 の Node 27 検証レーンは `mise.node27.toml`
+> （`MISE_ENV=node27`）、CI の `verify-node27`（`continue-on-error`）、初回の `docs/node27/` 記録、README の
+> worktree 手順で完了とする。`exp/node27` は M1 の完了条件に含めず、Node 27 でだけ必要な修正が生じた時点で
+> 作る（§3.1 の「任意」と同じ扱い）。
 
 本書（spec 000）は本 PR のレビュー承認で「確定」とし、マイルストーンには数えない。
 
@@ -236,9 +251,31 @@ spec 001 の tasks.md は、ここに挙げたファイルだけを `_Boundary:_
 | `AGENTS.md` | Create | エージェント向けの作業ルールとコマンド一覧 |
 | `README.md` | Modify | セットアップ、Node 27 検証手順、ロードマップ表 |
 
+> **改訂注記（2026-11-25、spec 001）**: [spec 001 の Clarifications](../001-dev-environment-and-gates/spec.md#clarifications)
+> にもとづき、上の表を次のように読み替える。spec 001 で実際に作るファイルの一覧は
+> [spec 001 の plan.md](../001-dev-environment-and-gates/plan.md) の File Structure Plan を正とする。
+>
+> - `src/app/**`, `src/lib/ai/**`, `tests/**`（2026-11-22 の 1 問目）: ZIP の足場のうち**基盤だけ**を取り込む。
+>   `src/` はプレースホルダーページ（`src/app/layout.tsx`、`src/app/page.tsx`）と
+>   `src/lib/ai/model-allowlist.ts` だけ、`tests/` はゲート自体を検査するテストとプレースホルダーページの `@smoke` E2E だけ。ZIP の
+>   アプリコード（`route.ts`、chat UI、`agent.ts`、`extract-task.ts`、`model.ts`）とそのテストは取り込まず、
+>   使い捨て環境での型照合結果を spec 001 の `research.md` に記録して、段 003〜006 の spec で TDD により実装する。
+> - `mise.toml`（2026-11-22 の 2 問目）: `gate` は独立したタスクではなく `verify` の別名（`alias`）。
+>   `verify` は `check` → `typecheck` → `check:model-ids` → `check:secrets` → `test` → `e2e` を直列に呼び、
+>   `security` は `security:osv` と `security:audit` を呼ぶ。ほかに `setup` を定義する。
+> - `package.json`（spec 001 plan の ADR-4）: 依存は段 1 のコードが使うものだけにする。AI SDK、プロバイダ
+>   パッケージ、Zod、`server-only` は入れず、最初に import する段（002 以降）の plan で宣言して入れる。§2 の
+>   技術スタック表の AI 関連の行は、その段で満たされる。
+
 ## Constitution Compliance
 
 本リポジトリにはまだ `.sdd/memory/constitution.md` がない。spec 001 の最初のタスクで作成し、以降の spec / plan はそれに照らして検証する。
+
+> **改訂注記（2026-11-25、spec 001）**: 憲章 `.sdd/memory/constitution.md` は plan §6 のガバナンス手順で
+> 制定済み（1.0.0、2026-11-22）で、spec 001 の PR に含めてコミットする
+> （[spec 001 の Clarifications](../001-dev-environment-and-gates/spec.md#clarifications) の「前提」）。
+> 同じ PR で、原則 3（verify と security の分離）と Additional Constraints の Node のレーンを MINOR 改訂する
+> （1.0.0 → 1.1.0、spec 001 要件 13.7）。上の「まだない」は本書作成時点の記述である。
 
 ## 9. 決定事項（2026-11-22、すべて推奨案を採用）
 

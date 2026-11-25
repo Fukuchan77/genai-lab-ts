@@ -1,0 +1,64 @@
+# CI for spec 001 (requirement 10). Both jobs run the same mise tasks as the local gate and the hooks,
+# so a commit made with --no-verify is still checked here.
+#
+# Every action is pinned to a commit SHA, with its tag in a comment. The chosen tags were published at
+# least 24 hours before they were adopted; see specs/001-dev-environment-and-gates/research.md R-1.
+name: ci
+
+on:
+  push:
+    branches: [main, "exp/**"]
+  pull_request:
+  # Weekly run of the Node 27 alpha lane. The required verify job skips it (see its `if`).
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+# No permission at the top; each job asks only for what it needs.
+permissions: {}
+
+jobs:
+  # The required check. Its name is what the protect-main ruleset requires.
+  verify:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The secret scan in `verify` reads the full history.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          version: 2026.11.12
+      - run: pnpm install --frozen-lockfile
+      # Records the versions in the log. Runs after the install because it calls tsc and next.
+      - run: mise run runtime
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: mise run verify
+      - run: mise run security
+      # verify must not change tracked files (for example a tsconfig.json rewritten by next).
+      - run: test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
+
+  # Node 27 alpha lane: informational only, it never blocks a merge.
+  verify-node27:
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    permissions:
+      contents: read
+    env:
+      MISE_ENV: node27
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          version: 2026.11.12
+      - run: pnpm install --frozen-lockfile
+      - run: mise run runtime
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: mise run verify

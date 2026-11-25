@@ -1,0 +1,93 @@
+# mise.toml — 既定レーン（Node 26 LTS）。検査の定義はこのファイルの [tasks] に 1 か所だけ置く。
+# 版は exact pin。採用時点（公開から 24 時間以上）の根拠は specs/001-dev-environment-and-gates/research.md R-1。
+# Node 27 alpha の検証レーンは mise.node27.toml（MISE_ENV=node27）で node だけを上書きする。
+
+[tools]
+node = "26.13.1"
+pnpm = "12.22.0"
+lefthook = "2.2.2"
+gitleaks = "8.30.1"
+osv-scanner = "2.7.1"
+
+[env]
+NEXT_TELEMETRY_DISABLED = "1"
+
+[tasks.check]
+description = "Biome lint and format check (no writes)"
+run = "pnpm exec biome check ."
+
+[tasks."check:model-ids"]
+description = "Fail when a model ID is written outside src/lib/ai/model-allowlist.ts"
+run = "node scripts/check-model-ids.mjs"
+
+[tasks."check:secrets"]
+description = "Scan the commit history reachable from HEAD for secrets (values redacted)"
+# --log-opts=HEAD limits the scan to what HEAD reaches. gitleaks' default (`git log --all`) also reads
+# other branches and stashes, which would make the result depend on which refs exist (spec 3.7).
+run = "gitleaks git --redact --ignore-gitleaks-allow --verbose --log-opts=HEAD"
+
+[tasks.typecheck]
+description = "Generate Next.js route types, then type-check with tsc (no emit)"
+run = ["pnpm exec next typegen", "pnpm exec tsc --noEmit"]
+
+[tasks.test]
+description = "Unit tests (Vitest; mock models, no network). Fails when no test runs."
+run = "pnpm exec vitest run"
+
+[tasks.e2e]
+description = "E2E smoke tests (Playwright, @smoke only). Fails when none runs."
+run = "pnpm exec playwright test --grep @smoke"
+
+[tasks."security:osv"]
+description = "Scan pnpm-lock.yaml for known vulnerabilities with osv-scanner (needs the network)"
+run = "osv-scanner scan source --lockfile=pnpm-lock.yaml"
+
+[tasks."security:audit"]
+description = "Fail on high or critical advisories with pnpm audit (needs the network)"
+# No --ignore-registry-errors: an unreachable registry must fail, not pass (spec 4.4).
+run = "pnpm audit --audit-level=high"
+
+[tasks.security]
+description = "Dependency vulnerability checks that need the network: osv-scanner, then pnpm audit"
+# Not part of `verify`, which stays offline. The pre-push hook and the CI verify job run both.
+run = [{ task = "security:osv" }, { task = "security:audit" }]
+
+[tasks.verify]
+description = "The offline, deterministic gate: lint, types, model IDs, secrets, unit tests, E2E smoke"
+alias = "gate"
+# One after another; the first failure stops the run. No check here needs the network (those are in
+# `security`). Order: cheap static checks first, the browser run last.
+run = [
+  { task = "check" },
+  { task = "typecheck" },
+  { task = "check:model-ids" },
+  { task = "check:secrets" },
+  { task = "test" },
+  { task = "e2e" },
+]
+
+[tasks.runtime]
+description = "Print the versions of Node, pnpm, TypeScript, Next.js, lefthook, gitleaks and osv-scanner (a record, not a check)"
+# Prints only. It compares nothing, so a version change never fails it; versions are pinned elsewhere.
+run = [
+  "node -v",
+  "pnpm -v",
+  "pnpm exec tsc -v",
+  "pnpm exec next --version",
+  "lefthook version",
+  "gitleaks version",
+  "osv-scanner --version",
+]
+
+[tasks.outdated]
+description = "List update candidates for tools (mise) and npm dependencies (pnpm); writes nothing. pnpm outdated exits 1 when there are candidates."
+# The exit code is not hidden: `pnpm outdated` exits 1 when anything is outdated, and that is the answer.
+run = ["mise outdated", "pnpm outdated"]
+
+[tasks.setup]
+description = "After cloning: install from the lockfile, install the test browser, register the git hooks"
+run = [
+  "pnpm install --frozen-lockfile",
+  "pnpm exec playwright install chromium",
+  "lefthook install",
+]

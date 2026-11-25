@@ -1,0 +1,31 @@
+# Dependabot (spec 001, requirements 10.11 and 10.12). Weekly version updates for npm dependencies and
+# GitHub Actions. Tools pinned in mise.toml are not covered; check them with `mise run outdated`.
+#
+# `cooldown` keeps version updates to releases at least a day old, matching pnpm's minimumReleaseAge.
+# It does not apply to security updates: merge those only after the fixed version is 24 hours old.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 1
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    # One pull request a week for every npm update, rather than one per package.
+    groups:
+      npm:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 1
+    commit-message:
+      prefix: "build"
+      include: "scope"
