@@ -579,3 +579,9 @@ Implementation log written by `/sdd-impl`. Evidence (commands, outputs, PROVE re
 - 12.4: unreachable → audit 1 (70 s, retries), osv 127 (general error per the official Return Codes table), `security`
   127 and stops before audit; lodash 4.17.20 → audit 1 (2 high), osv 1 (4 GHSAs). No reopening of 7.2 needed.
 - 12.2 decision (user): accept gitleaks-pre-commit.test.ts as the evidence for (d4)/(e); 12.2 marked done.
+
+### Task 12.5: commit, push, PR, CI — done
+- Commit fe8e9a6 (hooks green), `git fetch` showed no remote branch, push ran pre-push with all 4 jobs (29.5 s). PR #2.
+- CI run 45614530248: `verify` success in 78 s (verify 18 s, security 0.6 s, playwright install 40 s); `verify-node27`
+  failed on E2E with the same `rawHeaders.hasOwnProperty` error as the macOS record, unit 234/234; workflow success.
+- Linux external-request block: `network-guard.smoke.spec.ts` passed in the verify job. R-8, R-9, R-11 updated.

@@ -995,7 +995,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-007, REQ-008, REQ-009, REQ-010
   _Depends:_ 12.1
   _Requirements:_ 4.2, 4.3, 4.4
   _Traces:_ REQ-004, DES-1.4, DES-3.1
-- [ ] 12.5 記録をコミットし、push・PR を作成し、CI の緑を確認する
+- [x] 12.5 記録をコミットし、push・PR を作成し、CI の緑を確認する
   - タスク 9.2 と 11.5 のコミットの後に増えた変更（research.md の R-3〜R-11 の追記）を `git status` で確かめ、合意したグルーピングで commit する。Conventional Commits（英語）。憲章（1.1.0）、steering、`AGENTS.md` が タスク 11.5 のコミットに含まれていることを `git log` で確かめる（13.11）。ブランチ名は `feat/dev-environment-and-gates` のまま。
   - push の前に、リモートの同名ブランチを `git fetch origin <branch>` で確認する。pre-push フックは
     osv-scanner、`pnpm audit`、unit、`@smoke` を実行する（この push で 4 ジョブが順に起動することを R-9 に記録する。7.5、7.6）。フックが環境要因で落ちた場合は、同じ失敗が
@@ -1040,4 +1040,6 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-007, REQ-008, REQ-009, REQ-010
   skip する（R-11）。ファイルを変えない push ではフックの検査が走らない。CI が同じ検査を持つ。
 - 12.2: (d4)・(e) は、開発機の管理された秘密値ブロックが偽の秘密値の commit を拒否したため手動では実施できず、
   ユーザーの決定で `gitleaks-pre-commit.test.ts` の自動テストを証拠にした（R-9）。
+- 12.5: PR #2。CI の `verify` は 78 s で緑、`verify-node27` は E2E で失敗（`docs/node27/` の未解決事項 1 と同じ症状、Linux でも再現）、
+  ワークフローは `success`。単体テストは Node 27 でも 234/234（未解決事項 2 は解消）。
 

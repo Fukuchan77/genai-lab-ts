@@ -828,6 +828,15 @@ New feature（full）。リポジトリにアプリコードがなく、ZIP 足�
   E2E は Next.js 開発サーバーの `rawHeaders.hasOwnProperty is not a function` で `webServer` が 60 秒で時間切れ、テスト 0 件
   （同じ worktree の Node 26 は 2/2）。`check`、`typecheck`、`check:model-ids`、`check:secrets`、`security` は通過。
   詳細は `docs/node27/2026-11-23-initial-lane.md`。Linux は未確認（タスク 12.5）。
+
+  **Linux（CI の `verify-node27`、タスク 12.5、2026-11-25、PR #2 の run 45614530248、コミット fe8e9a6、ubuntu）**:
+  `node` v27.0.0-alpha.0.1.1。`mise run verify` は終了コード 1。`check`〜`check:secrets` は通過、`test` は **234/234 で通過**、
+  `e2e` は macOS と同じく `[WebServer] TypeError: rawHeaders.hasOwnProperty is not a function`（と `headers.hasOwnProperty`）が
+  繰り返され、`Error: Timed out waiting 60000ms from config.webServer.`、`no tests were executed` で失敗した。
+  `docs/node27/` の記録との突き合わせ: 未解決事項 1（E2E）は Linux でも同じ症状で再現し、OS に依存しない。未解決事項 2
+  （`AGENTS.md` による単体テスト 1 件の失敗）は、タスク 11.5 で `AGENTS.md` をコミットした後の commit では出なかった
+  （見込みどおり）。記録と食い違う結果はない。未解決事項 3（Linux 未確認）はこの結果で埋まる。ジョブは失敗したが
+  `continue-on-error` によりワークフロー全体は `success` だった（10.3、10.4）。
 - **R-9 ゲートの違反時の動作**（9.6）: 3.8・3.9・3.11 の違反状態と、verify の該当構成要素の終了コード。
 
   **フックの実行（タスク 7.5、2026-11-23、lefthook 2.2.2、macOS）**。一時リポジトリでの 5 件のケースは、組んだ直後に緑だった
@@ -925,6 +934,23 @@ New feature（full）。リポジトリにアプリコードがなく、ZIP 足�
   実行しないこと（3.2）は、同じ直列チェーンの (d1)〜(d3) で示した。
   付記: 単体テストの一時リポジトリは `GIT_CONFIG_GLOBAL=/dev/null`・`GIT_CONFIG_NOSYSTEM=1` で隔離しているため（`sandbox.ts`）、
   その中の commit にはこの統制がかからない（`gitleaks-pre-commit.test.ts` が通るのはこのため）。
+
+  **実際の push と CI（タスク 12.5、2026-11-25、コミット fe8e9a6、PR #2）**:
+  - `git push -u origin feat/dev-environment-and-gates`（リモートに同名ブランチなし。`git fetch` で `couldn't find remote ref`
+    を確認してから実行）で pre-push が起動し、`osv-scanner` 1.12 s → `pnpm-audit` 0.60 s → `unit-tests` 15.06 s →
+    `e2e-smoke` 3.14 s の順に 4 ジョブがすべて ✔️、合計 29.50 s、push は成功した（7.5、7.6）。新しいブランチの push では
+    push するファイルがあるため skip されない（R-11 の `no matching push files` の場合と対照）。
+  - CI（`ci.yml`、`pull_request`、run 45614530248、ubuntu）: `verify` ジョブは `success`。`mise run runtime` の版は開発機と同じ
+    （v26.13.1、pnpm 12.22.0、TypeScript 7.1.0-beta、Next.js v16.5.0-canary.60、lefthook 2.2.2、gitleaks 8.30.1、
+    osv-scanner 2.7.1）。`mise run verify`: Biome 39 files、`check:model-ids` 0 findings、gitleaks `22 commits scanned` /
+    `no leaks found`（`fetch-depth: 0` で PR のマージコミットまでの全履歴）、Vitest 234/234、`@smoke` 2 passed。
+    `mise run security`: osv-scanner `found 173 packages` / `No issues found`、`pnpm audit` `No known vulnerabilities found`。
+    最後の `git status --porcelain` の確認も通過（1.8、10.1、10.6、10.7）。security-daily.yml が未実行のうちは、この
+    `verify` ジョブの `mise run security` の緑を暫定の証拠とする（10.5 はタスク 12.7）。
+  - Linux での外部要求の遮断（3.11、タスク 12.2 の続き）: 同じ `verify` ジョブで `network-guard.smoke.spec.ts`「the
+    external-origin guard blocks and records an unmocked request」が ✓（658 ms）。遮断と記録を assert するテストなので、
+    chromium on Linux でも `context.route` が別オリジンの要求を止めている。`gate-self-check.test.ts` (e)（teardown で失敗する
+    経路）も同じジョブの 234 件に含まれて通った。
 
 - **R-10 非空虚の確認**（9.7）: 受け入れテストごとに、壊した対象、壊し方、失敗したことの出力。
 
@@ -1130,3 +1156,16 @@ New feature（full）。リポジトリにアプリコードがなく、ZIP 足�
     `runCommand` は 30 s（`tests/unit/helpers/sandbox.ts` の `timeoutMs ?? 30_000`）。1 件あたりの最長は 3.3 s
     （`gitleaks-pre-commit.test.ts`「refuses a commit that contains a secret …」）、次いで 3.2 s（`gate-self-check.test.ts` (e)）、
     2.6 s（`hooks-config.test.ts` の対照ケース）。どちらの上限にも 9 倍以上の余裕があるので**変えない**。
+
+  **CI（タスク 12.5、2026-11-25、run 45614530248、GitHub-hosted ubuntu）**。ステップの開始・終了時刻から。
+
+  | 対象 | `verify` ジョブ | `verify-node27` ジョブ |
+  |------|-----------------|------------------------|
+  | ジョブ全体 | 78 s（12:31:14〜12:32:32） | 106 s（失敗） |
+  | mise-action（ツールの導入） | 6 s | 8 s |
+  | `pnpm install --frozen-lockfile` | 2 s | 2 s |
+  | `playwright install --with-deps chromium` | 40 s | 19 s |
+  | `mise run verify` | 18 s（うち unit 約 13 s、`@smoke` 2.7 s） | 71 s（unit 通過の後、`webServer` の 60 s の時間切れ） |
+  | `mise run security` | 0.6 s | 実行しない |
+
+  ジョブの時間の半分はブラウザの導入で、ゲート自体（`verify` + `security`）は約 19 s。開発機の 19〜24 s と同程度。
