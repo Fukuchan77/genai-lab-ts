@@ -19,6 +19,12 @@ updates:
       npm:
         patterns:
           - "*"
+    # TypeScript stays on the 7.1 beta until a 7.1 RC or stable is published (research.md R-7). The
+    # nightly builds on npm's `next` tag (7.1.0-dev.YYYYMMDD.N) sort between beta and rc, so this range
+    # skips them and still lets an RC or stable through.
+    ignore:
+      - dependency-name: "typescript"
+        versions: [">= 7.1.0-dev, < 7.1.0-rc"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
