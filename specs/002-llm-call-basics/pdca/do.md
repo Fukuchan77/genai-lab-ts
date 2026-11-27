@@ -52,3 +52,20 @@
   1 件だけが失敗する。戻して `diff` で一致を確認した。
 - プロバイダごとの import は、AI SDK の同梱文書（`node_modules/ai/docs/`）で `anthropic` / `openai` / `google` の
   名前を確かめた。
+
+### タスク 7（7.1、7.2）: 統治文書の同期 — 完了
+- `AGENTS.md`（Current state、`mise run hello`、`src/` の記述、Code rules 2 行）、`README.md`（コマンド表、段 2 へのリンク）、
+  `.sdd/steering/tech.md`、`.sdd/steering/structure.md` を実物に合わせた。書いたパスと名前は `ls` と `mise tasks ls` で照合済み。
+  `No AI code` は `AGENTS.md` から消えた。
+
+### タスク 8.1、8.2（PROVE）— 完了
+- 26 か所を 1 か所ずつ壊し、すべて対応するテストが失敗し、戻して `git diff` が空だった（R-3）。テストの修正は不要。
+- `reason` の判定を逆にすると 11 件、`maxRetries` を SDK に渡さないと 8 件が落ちる。`DEFAULT_MAX_RETRIES`、`system` を
+  `instructions` に渡さない、4.7 のメッセージ漏れは 1 件ずつ落ちる。
+
+### タスク 8.4（分岐カバレッジ）— 完了
+- `basics.ts` の分岐カバレッジは 100%（33/33）。使い捨ての worktree で測り、消した。`package.json` に依存は入っていない（R-6）。
+
+### タスク 8.3 — 完了
+- `mise run verify`（API キーの環境変数を外す）は終了コード 0、323 件、`git status` に意図しない変更なし。`next build` も同様（R-4）。
+- ネットワークを切った実行（6.5）: ユーザーが 3 ファイル 85 件、終了コード 0 を報告（R-4）。切断は申告で、出力に証拠の行はない。

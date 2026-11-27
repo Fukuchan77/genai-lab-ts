@@ -566,3 +566,130 @@ RED のときと比べ、`llm-call-basics.test.ts` は 0 件（スイートの�
 - (b) の 6 秒は I-8 の実測（約 6 秒）と一致し、NFR の 15 秒以内を満たす。`maxRetries` の既定値 2 は変えない。
 - (e) の終了コードは未取得（任意。`server-only` の例外は出力で確認済み）。
 - 5.3 完了（2026-11-27）。モデルを戻すには `ollama pull llama3.2:3b`（後続のタスクでは不要）。
+
+## R-3 非空虚の確認（6.7）
+
+確認日: 2026-11-27。対象のコードは CP-A（`c01419a`）、CP-B（`6a34b10`）でコミット済み。1 か所ずつ壊し、対応するテストを実行して、
+失敗のメッセージを記録し、すぐ戻して `git diff -- <file>` が空であることを確かめた（Edit ではなくスクリプトが元の全文を
+書き戻した。戻したあとの `git diff` が空であることが復元の根拠）。スクリプトはスクラッチパッドに置き、コミットしない。
+
+### 呼び出し関数と契約テスト（8.1）
+
+壊した対象は `src/lib/ai/basics.ts`。実行: `pnpm exec vitest run tests/unit/llm-call-basics.test.ts tests/unit/llm-call-basics-contract.test.ts`
+（1.3 の行だけ `mise run typecheck`）。
+
+| 壊した箇所 | 失敗した件数 | 失敗したテスト（要約） |
+|------------|-------------|--------------------------|
+| DEFAULT_MAX_RETRIES を 3 にする (4.5) | 1 | 76 passed (77) / allows 2 retries, so 3 attempts, when maxRetries is omitted (4.5) |
+| maxRetries を SDK に渡さない (4.1〜4.4) | 8 | 69 passed (77) / stops after maxRetries + 1 attempts of retryable failures with retries-exhausted (4.2, 4.4); stops after maxRetries + 1 attempts of retryable failures wi |
+| system を instructions に渡さない (1.4) | 1 | 76 passed (77) / sends the system text first as a system message, then the prompt as a user message (1.4) |
+| temperature を落とす (1.6) | 4 | 73 passed (77) / passes temperature and maxOutputTokens through as given (1.6); accepts the finite temperature 0 (3.2); accepts the finite temperature -1 (3.2) … 他 1 件 |
+| maxOutputTokens を落とす (1.6) | 2 | 75 passed (77) / passes temperature and maxOutputTokens through as given (1.6); accepts maxOutputTokens 1, the smallest valid value (3.3) |
+| inputTokens の未報告を 0 で埋める (2.3) | 2 | 75 passed (77) / keeps a token count the model did not report as undefined, not 0: input only (2.3); keeps a token count the model did not report as undefined, not 0: bot |
+| outputTokens の未報告を 0 で埋める (2.3) | 2 | 75 passed (77) / keeps a token count the model did not report as undefined, not 0: output only (2.3); keeps a token count the model did not report as undefined, not 0: bo |
+| prompt の検証を外す (3.1) | 9 | 68 passed (77) / rejects a prompt that is empty string (3.1); rejects a prompt that is one space (3.1); rejects a prompt that is several spaces (3.1) … 他 6 件 |
+| temperature の検証を外す (3.2) | 5 | 72 passed (77) / rejects temperature NaN (3.2); rejects temperature Infinity (3.2); rejects temperature -Infinity (3.2) … 他 2 件 |
+| maxOutputTokens の検証を外す (3.3) | 7 | 70 passed (77) / rejects maxOutputTokens 0 (3.3); rejects maxOutputTokens -1 (3.3); rejects maxOutputTokens 1.5 (3.3) … 他 4 件 |
+| maxRetries の検証を外す (3.4) | 6 | 71 passed (77) / rejects maxRetries -1 (3.4); rejects maxRetries 1.5 (3.4); rejects maxRetries NaN (3.4) … 他 3 件 |
+| CallFailedError のメッセージに cause のメッセージを入れる (4.7) | 1 | 76 passed (77) / does not copy the message of the SDK error, or the prompt in it, into its own message (4.7) |
+| reason の判定を逆にする (4.2, 4.3) | 11 | 66 passed (77) / stops after maxRetries + 1 attempts of retryable failures with retries-exhausted (4.2, 4.4); stops after maxRetries + 1 attempts of retryable failures wi |
+| import "server-only" を消す (1.9) | 2 | 75 passed (77) / imports only server-only and ai; fails to load under the default conditions, and the output names server-only |
+| server-only と ai 以外の import を足す (1.1) | 1 | 76 passed (77) / imports only server-only and ai |
+| config を展開して generateText に渡す (1.2) | 2 | 75 passed (77) / does not forward keys that are not part of the settings, even when the type is widened (1.2); rejects keys that are not settings at compile time, and doe |
+| 設定の型を広げて @ts-expect-error を不要にする (1.3) | 型エラー 3 件 | `mise run typecheck` が `TS2578: Unused '@ts-expect-error' directive`（`llm-call-basics-contract.test.ts`）。指令が不要になり型検査が落ちる |
+
+17 か所すべてで、対応するテストが失敗した。戻したあと 17 回とも `git diff -- src/lib/ai/basics.ts` が空。
+
+### hello タスク・静的な検査・依存設定（8.2）
+
+実行: `pnpm exec vitest run tests/unit/hello-task.test.ts`（`pnpm-workspace.yaml` の行は `tests/unit/repo-policy.test.ts`）。
+
+| 壊したファイルと箇所 | 失敗した件数 | 失敗したテスト |
+|----------------------|-------------|------------------|
+| `mise.toml`: `hello` のコマンドから `--conditions=react-server` を外す（5.8） | 1 | `is one command, \`node --conditions=react-server scripts/hello.ts\` (5.8)` |
+| `mise.toml`: `verify` に `{ task = "hello" }` を足す（5.9） | 1 | `is not reached from the verify task (5.9)` |
+| `mise.toml`: `security` に `{ task = "hello" }` を足す（5.9） | 1 | `is not reached from the security task (5.9)` |
+| `mise.toml`: `hello` の `description` を消す（5.8） | 1 | `has a description (5.8)` |
+| `scripts/hello.ts`: `process.env` を足す（5.7） | 1 | `does not read environment variables (5.7)` |
+| `scripts/hello.ts`: `callModel(` を 2 か所にする（5.3） | 1 | `calls callModel in exactly one place, with all five settings written out (5.3)` |
+| `scripts/hello.ts`: `maxRetries` を引数から外す（5.3） | 1 | 同上 |
+| `pnpm-workspace.yaml`: `permissions` を消す（ADR-9） | 1 | `refuses the agent skill that the \`ai\` package ships (spec 002, ADR-9)` |
+| `pnpm-workspace.yaml`: `ai` の `skills` を `true` にする（ADR-9） | 1 | 同上 |
+
+9 か所すべてで失敗し、戻したあと `git diff` が空。Codex が指摘した hello の出力の検査（`console.error(PROMPT)` など 4 つの変異）は
+`.sdd/reviews/002-llm-call-basics-1-5.2-codex.md` に記録済み。
+
+### 結論
+
+26 か所すべてで、壊すとテストが失敗した。壊してもテストが失敗しない箇所はなく、テストファイルの修正は不要だった。
+補足: 実装前から通る 5.9 の 3 件（否定の検査）は、上の `verify` / `security` への参照の追加で失敗することを示した（R-2 の注記に対応）。
+
+## R-4 `mise run verify` と作業ツリー（6.5、8.7、ADR-7）
+
+確認日: 2026-11-27。HEAD は CP-B（`6a34b10`）。作業ツリーには、解説と統治文書の未コミットの変更がある。
+
+### `mise run verify`
+
+- コマンド: `env -u OPENAI_API_KEY -u ANTHROPIC_API_KEY -u GOOGLE_GENERATIVE_AI_API_KEY mise run verify`（API キーを表す 3 つの環境変数を外した）。終了コード 0。
+- 6 つの検査がこの順にすべて成功: `check`（Biome）、`typecheck`（`next typegen` → `tsc --noEmit`）、`check:model-ids`（scanned 46 files, 0 findings）、
+  `check:secrets`（gitleaks）、`test`（14 ファイル、323 件）、`e2e`（`2 passed`）。
+- 段 2 のテストが実行された: `llm-call-basics.test.ts`（71 件）、`llm-call-basics-contract.test.ts`（6 件）、`hello-task.test.ts`（8 件）、
+  `repo-policy.test.ts`（48 件、うち 1 件が段 2 の追加）。段 1 の終わりは 236 件で、段 2 の追加は 87 件。
+- 実行後の `git status --porcelain` に意図しない変更はない。出力は既知の未コミットの変更（`.sdd/steering/`、`AGENTS.md`、`README.md`、
+  `specs/002-llm-call-basics/`、`docs/stages/2-llm-call-basics.md`）だけで、`tsconfig.json` と `next-env.d.ts` の書き換えはない。
+
+### `pnpm exec next build`（verify は `next build` を通らないため、gate には入れない）
+
+- `tsconfig.json` を変えた直後（タスク 2.1）: `mise run typecheck` 成功。続く `pnpm exec next build` も成功し、前後の
+  `git status --porcelain` は同じ（`tsconfig.json` の意図した 4 項目の差分だけ）。
+- 最終状態（CP-B のあと）: `pnpm exec next build` が終了コード 0。実行後の `git status --porcelain` は実行前と同じ（`tsconfig.json`、
+  `next-env.d.ts` の書き換えなし）。
+
+### `.env.example`（8.7）
+
+`git diff --stat -- .env.example` は空。`repo-policy.test.ts` の `.env.example` の検査は通っている。
+
+### ネットワークを切った実行（6.5）
+
+ユーザーの環境で、ネットワークを切った状態での実行を依頼し、貼られた出力を記録した（実行時刻 20:31、`Start at 20:31:47`）。
+
+```
+pnpm exec vitest run tests/unit/llm-call-basics.test.ts tests/unit/llm-call-basics-contract.test.ts tests/unit/hello-task.test.ts
+ ✓ tests/unit/llm-call-basics.test.ts (71 tests)
+ ✓ tests/unit/llm-call-basics-contract.test.ts (6 tests)
+ ✓ tests/unit/hello-task.test.ts (8 tests)
+ Test Files  3 passed (3)    Tests  85 passed (85)    exit=0
+```
+
+接続できる状態の結果（71 + 6 + 8 = 85 件、すべて GREEN）と同じ合否だった。
+
+注意: 貼られた出力そのものには、ネットワークを切ったことを示す行（`networksetup` の出力など）がない。切断はユーザーの申告に
+よる。切断の有無によらず合否が変わらないことの根拠は、2 つある。(1) 段 2 のテストはモックモデルと子プロセスの `node` だけを使い、
+外部へ接続しない設計である。(2) 既存の通信ガード（`tests/unit/setup/network-guard.ts`）が、未モックの接続を試みたテストを
+失敗させる（spec 001 の 3.10）。接続を試みれば、接続中でも切断中でもテストは失敗する。
+
+
+### Node 27 レーン（任意の参考記録）
+
+未実施。
+
+## R-6 分岐カバレッジ（NFR、ADR-10）
+
+確認日: 2026-11-27。しきい値は合否に使わない（TODO(BRANCH_COVERAGE)）。計測専用の `@vitest/coverage-v8` は `package.json` に入れない。
+
+- 手順: CP-B（`6a34b10`）の HEAD から使い捨ての worktree を作り（`git worktree add --detach /tmp/prove/wt HEAD`）、
+  `mise trust`、`mise install`、`pnpm install --frozen-lockfile` のあと、`pnpm add --save-exact -D @vitest/coverage-v8@5.1.2`
+  を worktree の中でだけ実行した（`vitest` と同じ 5.1.2。公開は 2026-11-25T11:50:54Z で 24h を満たす）。
+- コマンド（worktree の中）:
+
+  ```bash
+  pnpm exec vitest run tests/unit/llm-call-basics.test.ts tests/unit/llm-call-basics-contract.test.ts \
+    --coverage --coverage.provider=v8 --coverage.include=src/lib/ai/basics.ts \
+    --coverage.reporter=text --coverage.reporter=json-summary
+  ```
+
+- 結果（`src/lib/ai/basics.ts`）: **分岐 100%（33/33）**、文 100%（28/28）、関数 100%（5/5）、行 100%（28/28）。2 ファイル、77 件が GREEN。
+- 後始末: `git worktree remove --force /tmp/prove/wt` と `git worktree prune` で worktree を消した。メインの作業ツリーの
+  `package.json` に `@vitest/coverage-v8` はなく、`pnpm-lock.yaml` に差分はない。lockfile の `@vitest/coverage-v8` の 2 行は、段 2 より前
+  （`2b4d216`）からある vitest の optional peer の記述で、段 2 の追加ではない。
+- 注意: 100% は「すべての分岐を通った」ことしか示さず、テストが適切に判定していることの証拠は R-3（壊すと落ちること）が担う。

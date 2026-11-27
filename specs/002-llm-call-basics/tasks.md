@@ -510,7 +510,7 @@ plan C7 のうち、`spec.md` の Clarifications への「plan 時の追記」4 
 （spec.md の「plan 時の追記（2026-11-27）」節）。`research.md` の R-1〜R-7 は各タスクが記録する。ここでは残りの 4 ファイルを
 実物に合わせる。書くのは実装で確かめた事実だけで、版番号は確認日つきの参考値にする。
 
-- [ ] 7.1 (P) `AGENTS.md` と `README.md` を段 2 の状態に合わせる（英語）
+- [x] 7.1 (P) `AGENTS.md` と `README.md` を段 2 の状態に合わせる（英語）
   - `AGENTS.md`: "Current state" を段 2（`generateText` の呼び出しと Ollama の実行例が入った状態。未マージなら PR の状態を
     正確に書く）に、コマンド表に `mise run hello`（Ollama が要る。`verify` に含まれない）を加え、Architecture の `src/` の
     記述に `src/lib/ai/basics.ts` と `scripts/hello.ts` を加える（8.8）。Code rules に 2 行を加える: Node が直接実行するコード
@@ -524,7 +524,7 @@ plan C7 のうち、`spec.md` の Clarifications への「plan 時の追記」4 
   _Depends:_ 5.3, 6.2
   _Requirements:_ 8.8
   _Traces:_ REQ-008, DES-2.7
-- [ ] 7.2 (P) steering の 2 ファイルを段 2 の状態に合わせる（日本語）
+- [x] 7.2 (P) steering の 2 ファイルを段 2 の状態に合わせる（日本語）
   - `.sdd/steering/tech.md`: 状態の注記（確認日つき）、Stack の AI の行（`ai`、Ollama 用の `@ai-sdk/openai-compatible`、
     `server-only`、peer の `zod`）、Conventions（`system` ではなく `instructions` に渡すこと、Node の型の除去と
     `react-server` 条件で動かすスクリプト、依存の agent skill を承認しないこと）を更新する。
@@ -553,7 +553,7 @@ _Traces:_ REQ-006, REQ-008, DES-2.5, DES-2.7
 壊して戻す作業（8.1、8.2）は、コミット済みの状態（CP-B 以降）から `git diff` で復元を確かめられるときだけ行う。戻すときは
 ファイル全体のコピーではなく Edit で元の行に戻し、`git diff` が空であることを確かめる（spec 001 の教訓）。
 
-- [ ] 8.1 呼び出し関数とその契約テストが非空虚であることを確かめて R-3 に記録する（6.7）
+- [x] 8.1 呼び出し関数とその契約テストが非空虚であることを確かめて R-3 に記録する（6.7）
   - 対象のロジックを 1 か所ずつ壊し、対応するテストが失敗することと失敗のメッセージを記録し、すぐ戻して `git diff` が空であること
     を確かめる。壊し方（失敗するテストの対応）: `DEFAULT_MAX_RETRIES` を変える（4.5）、`maxRetries` を SDK に渡さない
     （4.1〜4.4）、`system` を `instructions` に渡さない（1.4）、`temperature` / `maxOutputTokens` を落とす（1.6）、未報告の
@@ -568,7 +568,7 @@ _Traces:_ REQ-006, REQ-008, DES-2.5, DES-2.7
   _Depends:_ 5.3, 6.2, 7.1, 7.2
   _Requirements:_ 6.7
   _Traces:_ REQ-006, DES-2.5
-- [ ] 8.2 hello タスク・hello の静的な検査・依存設定のテストが非空虚であることを確かめて R-3 に追記する（6.7）
+- [x] 8.2 hello タスク・hello の静的な検査・依存設定のテストが非空虚であることを確かめて R-3 に追記する（6.7）
   - 1 か所ずつ壊し、戻して `git diff` が空であることを確かめる: `mise.toml` の `hello` のコマンドを変える・`verify` から
     `hello` を参照させる（5.8、5.9）、`scripts/hello.ts` に `process.env` を足す・`callModel(` を 2 か所にする（5.3、5.7）、
     `pnpm-workspace.yaml` の `permissions` を消す（ADR-9）。
@@ -578,7 +578,7 @@ _Traces:_ REQ-006, REQ-008, DES-2.5, DES-2.7
   _Depends:_ 8.1
   _Requirements:_ 6.7
   _Traces:_ REQ-006, DES-2.5
-- [ ] 8.3 `mise run verify` と作業ツリーの確認を行って R-4 に記録する（6.5、8.7）
+- [x] 8.3 `mise run verify` と作業ツリーの確認を行って R-4 に記録する（6.5、8.7）
   - `mise run verify` が終了コード 0（6 つの検査がすべて通り、段 2 のテストが実行されている）。API キーを表す環境変数
     （`OPENAI_API_KEY`、`ANTHROPIC_API_KEY`、`GOOGLE_GENERATIVE_AI_API_KEY`）を外して実行しても同じ合否になること。実行後の
     `git status --porcelain` に意図しない変更（`tsconfig.json` や `next-env.d.ts` の書き換え）がないこと（ADR-7）。
@@ -598,7 +598,7 @@ _Traces:_ REQ-006, REQ-008, DES-2.5, DES-2.7
   _Depends:_ 8.1, 8.2, 6.2, 7.1, 7.2
   _Requirements:_ 6.5, 8.7
   _Traces:_ REQ-006, REQ-008, DES-2.5
-- [ ] 8.4 呼び出し関数の分岐カバレッジを使い捨ての worktree で測って R-6 に記録する（NFR、ADR-10）
+- [x] 8.4 呼び出し関数の分岐カバレッジを使い捨ての worktree で測って R-6 に記録する（NFR、ADR-10）
   - コミット済みの HEAD から `git worktree add` で作業ツリーを作り、`mise trust`、`mise install`、
     `pnpm install --frozen-lockfile` のあと `@vitest/coverage-v8`（`vitest` と同じ版。24h を満たす版を確かめる）を、
     `package.json` を保存しない形（例: `pnpm add --save-exact -D` した変更をコミットしない）で入れる。
