@@ -3,7 +3,16 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    alias: [
+      { find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) },
+      // Exact match only: `server-only` must not capture other package names. Spec 002, ADR-8.
+      {
+        find: /^server-only$/,
+        replacement: fileURLToPath(
+          new URL("./tests/unit/setup/server-only-stub.ts", import.meta.url),
+        ),
+      },
+    ],
   },
   test: {
     include: ["tests/unit/**/*.test.ts"],
