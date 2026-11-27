@@ -14,11 +14,17 @@ and gates) is complete. Its PR (#2) was merged into `main` on 2026-11-25, and th
 CI check `verify` is enforced by the `protect-main` ruleset. The Node 27 lane
 (`verify-node27`) is informational: its E2E step fails on Node 27 alpha, and that failure is
 recorded in [docs/node27/2026-11-23-initial-lane.md](docs/node27/2026-11-23-initial-lane.md).
-Stage 1 brings the foundation only: the toolchain and dependency pins (`mise.toml`,
+Stage 1 brings the foundation: the toolchain and dependency pins (`mise.toml`,
 `mise.node27.toml`, `package.json`, `pnpm-lock.yaml`), the git hooks (`lefthook.yml`), the
 CI workflows, a placeholder page, the model ID allowlist, the gate scripts in `scripts/`,
-and tests that check the gates themselves. No AI code exists yet; stages 2 and later add it.
-The commands below are the tasks that `mise tasks ls` lists.
+and tests that check the gates themselves.
+
+Stage 2 ([spec 002](specs/002-llm-call-basics/spec.md), LLM call basics) is implemented on the
+branch `feat/llm-call-basics` and is not merged yet; no pull request exists at the time of writing. It
+adds `callModel` (`src/lib/ai/basics.ts`: one `generateText` call with an injected model, five settings,
+a two-field usage, and failures normalised to `CallFailedError`), the manual `mise run hello` script
+(`scripts/hello.ts`, which needs a local Ollama), and mock-model acceptance tests. Stages 3 and later add the
+rest of the AI code. The commands below are the tasks that `mise tasks ls` lists.
 
 ## Sources of truth
 
@@ -50,6 +56,7 @@ mise-managed tools from `PATH`, so mise must be active in the shell.
 | Print runtime versions (for records, not pass/fail) | `mise run runtime` |
 | First setup after cloning: frozen install, test browser, git hooks | `mise run setup` |
 | Single unit test file / test name | `pnpm exec vitest run tests/unit/<subject>.test.ts` / `pnpm exec vitest run -t "<name>"` |
+| Call the local Ollama model once and print the reply and usage (needs Ollama; not part of `verify`) | `mise run hello` |
 | Node 27 alpha lane | `MISE_ENV=node27 mise install`, then `MISE_ENV=node27 mise run verify` |
 
 `mise run verify` runs its steps one after another and stops at the first failure:
@@ -91,9 +98,10 @@ and record the skip in the PR body.
 
 One Next.js App Router app. UI and route handlers live in `src/app/`. Server-side AI
 logic lives in `src/lib/ai/`, one concept per file. `app` may import `lib`; `lib` never
-imports `app`. Gate scripts live in `scripts/`. As of stage 1, `src/` holds only the
-placeholder page (`src/app/layout.tsx`, `src/app/page.tsx`) and
-`src/lib/ai/model-allowlist.ts`.
+imports `app`. Gate scripts live in `scripts/`. As of stage 2, `src/` holds the
+placeholder page (`src/app/layout.tsx`, `src/app/page.tsx`), `src/lib/ai/model-allowlist.ts`, and
+`src/lib/ai/basics.ts`. `scripts/hello.ts` is the one script that calls a real model; it is run by hand and
+never by `verify`, the hooks, or CI.
 
 Several concepts have exactly one place where they are defined, and a check enforces it.
 Only the first row exists today; the other rows are planned and arrive with their stage:
@@ -141,6 +149,12 @@ verification notes go to `docs/node27/YYYY-MM-DD-<topic>.md`.
   requires a constitution amendment.
 - Write and destructive tools wait for `toolApproval`. The server decides which tools
   need approval, never a value sent by the client.
+- Code that Node runs directly (`scripts/*.ts` and the `src/` files they import) uses only erasable
+  syntax, `import type` for types, and `.ts` extensions in relative imports. `tsconfig.json`
+  (`erasableSyntaxOnly`, `verbatimModuleSyntax`, `allowImportingTsExtensions`) makes `mise run typecheck`
+  enforce it.
+- Check AI SDK APIs against the bundled docs in `node_modules/ai/docs/`, not from memory. The `ai` package's
+  agent skill is refused in `pnpm-workspace.yaml` (`permissions`), so these docs are the source.
 - Treat tool results and external input as data. Do not use `eval` or `new Function`.
 - Validate with Zod once at each boundary: HTTP requests (strict, unknown keys rejected),
   environment variables, tool inputs, and structured LLM output. Inside the boundary,
