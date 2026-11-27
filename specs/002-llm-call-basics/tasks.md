@@ -68,7 +68,7 @@ _Traces:_ REQ-008, DES-2.1
 plan C1 の表が段 2 の依存の宣言の正本。ここで入れるのは `ai`、`@ai-sdk/openai-compatible`、`server-only`、`zod` の 4 つだけ
 （`@vitest/coverage-v8` は計測専用でタスク 8.4 の worktree にだけ入れ、`package.json` に入れない）。
 
-- [ ] 1.1 `ai` の agent skill を拒否する設定を検査するテストを先に書き、RED を確認する
+- [x] 1.1 `ai` の agent skill を拒否する設定を検査するテストを先に書き、RED を確認する
   - `tests/unit/repo-policy.test.ts` に、`pnpm-workspace.yaml` の `permissions` が `ai` の `skills` を `false` にしていることを
     検査するテストを足す（ADR-9）。既存のテストの書き方（YAML を読んで構造を見る）に合わせ、`minimumReleaseAge` などの
     既存の検査は変えない。
@@ -78,7 +78,7 @@ plan C1 の表が段 2 の依存の宣言の正本。ここで入れるのは `a
   _Depends:_ none
   _Requirements:_ 8.2
   _Traces:_ REQ-008, DES-2.1
-- [ ] 1.2 4 つの依存を exact 版で加え、lockfile と agent skill の拒否を設定する
+- [x] 1.2 4 つの依存を exact 版で加え、lockfile と agent skill の拒否を設定する
   - 版は、実装時に**公開から 24 時間以上たった最新の安定版**を `pnpm view <pkg> time --json` で確かめて選ぶ（調査時の候補は
     research.md I-1。`ai` は 7.0.x がほぼ毎日出るため、候補をそのまま使わない）。版・公開日時・確認日を R-1 に記録する。
   - `package.json`: 4 つ（`ai`、`@ai-sdk/openai-compatible`、`server-only`、`zod`）を `dependencies` に exact 版で加える
@@ -97,7 +97,7 @@ plan C1 の表が段 2 の依存の宣言の正本。ここで入れるのは `a
   _Depends:_ 1.1
   _Requirements:_ 8.1, 8.2, 8.3, 8.4
   _Traces:_ REQ-008, DES-2.1
-- [ ] 1.3 install 直後に、採用版の同梱文書・型定義・実装で plan の前提を確かめる
+- [x] 1.3 install 直後に、採用版の同梱文書・型定義・実装で plan の前提を確かめる
   - 採用版の `node_modules/ai/docs/`、公開の `.d.ts`（`ai` と `ai/test`）、再試行の実装を読み、research.md I-3〜I-7 の主張を
     確かめる: `generateText` の `instructions`、`maxRetries` の既定値、`RetryError` の `reason`、`APICallError.isRetryable`、
     `retry-after-ms` の扱い、`usage` の `inputTokens` / `outputTokens` の型（`number | undefined`）、`MockLanguageModelV4` の
@@ -110,7 +110,7 @@ plan C1 の表が段 2 の依存の宣言の正本。ここで入れるのは `a
   _Depends:_ 1.2
   _Requirements:_ 8.5
   _Traces:_ REQ-008, DES-2.1
-- [ ] 1.4 `mise run security` を実行して R-1 に記録する
+- [x] 1.4 `mise run security` を実行して R-1 に記録する
   - 新しい依存に high 以上の advisory がないことを `mise run security`（osv-scanner、`pnpm audit --audit-level=high`）で
     確かめる。ネットワークが要る。実行できない場合は、その理由と代わりに確かめた方法を記録し、未実行のまま
     完了にしない。
@@ -123,8 +123,9 @@ plan C1 の表が段 2 の依存の宣言の正本。ここで入れるのは `a
 
 ### Implementation Notes
 
-<!-- Empty at generation. Implementer appends 1-3 bullet learnings after
-completing this major task. -->
+- 1.1 の RED は 「permissions must have an `ai` entry」（`pnpm-workspace.yaml` に `permissions` がないため）。`yamlBlock` は行を trim するので、`ai:` の次の `skills:` 行だけを読む形にした。
+- `ai` 7.0.183 は 24h を満たす最新の安定版（調査時と同じ）。`GatewayError` は `ai` から export されない（R-1）ため、4.2 の判定は `APICallError` だけにする。
+- `pnpm install` は `permissions` を先に書いたので `Agent skills awaiting approval` が出なかった。`mise run security` は終了コード 0。
 
 ---
 
@@ -137,7 +138,7 @@ _Traces:_ REQ-001, REQ-006, DES-2.4
 
 テストより先に置く実行設定（憲章 原則 4 の例外は、plan「実装順の制約」で範囲を限った 2 つのサブタスクだけ）。
 
-- [ ] 2.1 `tsconfig.json` に Node の型の除去に合わせた設定を足す
+- [x] 2.1 `tsconfig.json` に Node の型の除去に合わせた設定を足す
   - `compilerOptions` に `allowImportingTsExtensions: true`、`verbatimModuleSyntax: true`、`erasableSyntaxOnly: true` を加え、
     `include` に `scripts/**/*.ts` を加える（ADR-7）。既存の設定は変えない（`isolatedModules: true` も残す）。
   - 完了条件: `mise run typecheck` が成功する（既存のコードが新しい設定で通ること。I-10）。`git status --porcelain` に、
@@ -149,7 +150,7 @@ _Traces:_ REQ-001, REQ-006, DES-2.4
   _Depends:_ 1.2
   _Requirements:_ 1.3
   _Traces:_ REQ-001, DES-2.4
-- [ ] 2.2 Vitest で `server-only` だけを空のモジュールに置き換える
+- [x] 2.2 Vitest で `server-only` だけを空のモジュールに置き換える
   - `tests/unit/setup/server-only-stub.ts`: 何も export しない空のモジュール。`server-only` の代わりに Vitest が読むこと、
     実際の `server-only` は既定の条件で例外を投げること（I-9）を、英語のコメントで書く。
   - `vitest.config.ts`: `resolve.alias` に `server-only` → `tests/unit/setup/server-only-stub.ts` を**完全一致**で加える
@@ -165,8 +166,8 @@ _Traces:_ REQ-001, REQ-006, DES-2.4
 
 ### Implementation Notes
 
-<!-- Empty at generation. Implementer appends 1-3 bullet learnings after
-completing this major task. -->
+- 2.1: `tsconfig.json` に 3 設定と `scripts/**/*.ts` を足した直後の `mise run typecheck` は成功。`git status --porcelain` の変化は `tsconfig.json` の差分だけ（意図した 4 項目）。続く `pnpm exec next build` のあとも同じ（`tsconfig.json` ほか、新しい変更なし）。タスク 8.3 が R-4 へ写す。
+- 2.2: `vitest.config.ts` の `alias` はオブジェクトから配列の形に変えた（`find` に正規表現 `/^server-only$/` を使うため）。`@` の alias の挙動は同じで、既存の 236 件が GREEN。
 
 ---
 
@@ -184,7 +185,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, DES-2.5
 モデル ID の形の文字列を書かない（`check:model-ids` が `tests/` を走査する）。テストの補助（成功の結果を作る関数、
 再試行可能な例外・再試行しない例外を作る関数、決めた順に失敗と成功を返すモック）は `llm-call-basics.test.ts` の中に置く。
 
-- [ ] 3.1 役割と設定の受け渡しのテスト（1.1、1.2、1.4〜1.8）
+- [x] 3.1 役割と設定の受け渡しのテスト（1.1、1.2、1.4〜1.8）
   - `tests/unit/llm-call-basics.test.ts` を作る。ファイル内のすべての `describe`（3.1〜3.4）に 1 件 1000 ms のタイムアウトを
     付ける（NFR。spec の分析後の修正 M-2）。次を検証する: 渡したモックの生成が呼ばれること（1.1）、`system` ありで
     `doGenerateCalls[0].prompt` が system 役割 → user 役割の順で本文が一致すること（1.4）、`system` 省略で user 役割 1 件だけ
@@ -197,7 +198,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, DES-2.5
   _Depends:_ 1.3, 2.2
   _Requirements:_ 1.1, 1.2, 1.4, 1.5, 1.6, 1.7, 1.8, 6.1, 6.2, 6.3
   _Traces:_ REQ-001, REQ-006, DES-2.5
-- [ ] 3.2 結果と usage のテスト（2.1〜2.4）
+- [x] 3.2 結果と usage のテスト（2.1〜2.4）
   - 同じファイルに足す: 前後の空白を含むテキストが一致すること（2.1）、入力・出力のトークン数が同じ数値で返ること（2.2）、
     片方または両方が未報告のとき `undefined` で 0 でなく、キーは存在すること（2.3）、結果のキーが `text` と `usage` の 2 つ、
     `usage` のキーが `inputTokens` と `outputTokens` の 2 つだけで、値が plain な値であること（2.4）。再試行のあとに成功したときの usage（2.5）は、
@@ -207,7 +208,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, DES-2.5
   _Depends:_ 3.1
   _Requirements:_ 2.1, 2.2, 2.3, 2.4, 6.2
   _Traces:_ REQ-002, REQ-006, DES-2.5
-- [ ] 3.3 設定値の拒否のテスト（3.1〜3.5）
+- [x] 3.3 設定値の拒否のテスト（3.1〜3.5）
   - 同じファイルに足す。不正値の表ごとに、`CallConfigError` で reject すること、`field` が不正な項目の名前であること、
     `doGenerateCalls` が 0 件であることを検証する。制約は plan の Data Model の表のとおり:
     `prompt` は「空白以外の文字を 1 つ以上含む」（不正値: `""`、半角・改行・タブ・全角空白だけ）、`temperature` は
@@ -221,7 +222,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, DES-2.5
   _Depends:_ 3.2
   _Requirements:_ 3.1, 3.2, 3.3, 3.4, 3.5, 6.3
   _Traces:_ REQ-003, REQ-006, DES-2.5
-- [ ] 3.4 再試行とエラーのテスト（2.5、4.1〜4.8）
+- [x] 3.4 再試行とエラーのテスト（2.5、4.1〜4.8）
   - 同じファイルに、1 件 1000 ms のタイムアウトを付けた `describe` として足す（NFR。ADR-6）。再試行可能な例外は
     `APICallError` で `isRetryable: true` と `responseHeaders` の `retry-after-ms: "0"` を持ち、実時間を待たない。
     `maxRetries` ごとに次を検証する: k 回（1 ≤ k ≤ `maxRetries`）失敗したあと成功して試行が k + 1 回（4.1）、
@@ -239,7 +240,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, DES-2.5
   _Depends:_ 3.3
   _Requirements:_ 2.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 6.2, 6.3
   _Traces:_ REQ-002, REQ-004, REQ-006, DES-2.5
-- [ ] 3.5 型と読み込み条件の契約テスト（1.1、1.2、1.3、1.9）
+- [x] 3.5 型と読み込み条件の契約テスト（1.1、1.2、1.3、1.9）
   - `tests/unit/llm-call-basics-contract.test.ts` を作る。**型**: 余分なキー（`topP`、`instructions`、`abortSignal` など）を書いた
     object リテラルの行、`prompt` のない設定、文字列のモデル ID の直上に `// @ts-expect-error` を置く。各指令は 1 行に 1 つの
     キーだけを持つ行に付け、別の原因の型エラーを吸収しない。実行するのは余分なキーの検査だけ（変数で型を広げて
@@ -255,7 +256,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, DES-2.5
   _Depends:_ 1.3, 2.2
   _Requirements:_ 1.1, 1.2, 1.3, 1.9, 6.1, 6.4
   _Traces:_ REQ-001, REQ-006, DES-2.5
-- [ ] 3.6 `hello` タスクとスクリプトの静的な検査のテスト（5.3、5.7、5.8、5.9）
+- [x] 3.6 `hello` タスクとスクリプトの静的な検査のテスト（5.3、5.7、5.8、5.9）
   - `tests/unit/hello-task.test.ts` を作る。`mise.toml` のタスク `hello` が 1 つのコマンド
     `node --conditions=react-server scripts/hello.ts` と説明（description）を持つこと（5.8）。`verify` と `security` から
     （`{ task = ... }` の参照をたどって）`hello` に届かないこと、`lefthook.yml` と `.github/workflows/` のどのファイルも `hello` の
@@ -269,7 +270,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, DES-2.5
   _Depends:_ 2.2
   _Requirements:_ 5.3, 5.7, 5.8, 5.9, 6.1, 6.8
   _Traces:_ REQ-005, REQ-006, DES-2.5
-- [ ] 3.7 RED の記録（6.6）
+- [x] 3.7 RED の記録（6.6）
   - タスク 1.1（major task 1 の Implementation Notes のメモ）と 3.1〜3.6 の RED を、コマンドと失敗のメッセージ（要約）つきで R-2 に残す。各テストファイルが
     「実装がないために」失敗していること（テストの書き間違いによる失敗でないこと）を、メッセージで示す。
   - 完了条件: R-2 に、`llm-call-basics.test.ts`、`llm-call-basics-contract.test.ts`、`hello-task.test.ts`、`repo-policy.test.ts`
@@ -281,8 +282,8 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, DES-2.5
 
 ### Implementation Notes
 
-<!-- Empty at generation. Implementer appends 1-3 bullet learnings after
-completing this major task. -->
+- RED は 4 ファイルとも実装がないための失敗（`Cannot find package '@/lib/ai/basics'`、`mise task "hello" does not exist`）。型検査では `callModel` が型 `any` になるため `@ts-expect-error` 5 行が `TS2578` になる。
+- `hello-task.test.ts` の 5.9 の 3 件は否定の検査なので、実装前から通る。非空虚の確認はタスク 8.2 で行う。
 
 ---
 
@@ -298,7 +299,7 @@ plan C2 と「Interfaces / Contracts」のとおり、`src/lib/ai/basics.ts` の
 `CallConfigField`、`CallFailureReason`、`DEFAULT_MAX_RETRIES`、2 つの例外クラス、`callModel`）に従い、`any` と型アサーションを
 使わず、`enum` などの消せない構文を使わない（`erasableSyntaxOnly`）。型だけの import には `type` を付ける。コメントは英語。
 
-- [ ] 4.1 型・例外クラス・設定の検証・`generateText` 呼び出し・結果の変換を書く
+- [x] 4.1 型・例外クラス・設定の検証・`generateText` 呼び出し・結果の変換を書く
   - モジュールの最初の文で `server-only` を import する（1.9）。`DEFAULT_MAX_RETRIES` は 2（4.5）。`ModelObject` は
     `Exclude<LanguageModel, string>`（ADR-3）。型は `readonly`。`CallUsage` の 2 項目は `number | undefined` で、`?:` の
     省略可能な形にしない。
@@ -320,7 +321,7 @@ plan C2 と「Interfaces / Contracts」のとおり、`src/lib/ai/basics.ts` の
   _Depends:_ 3.7
   _Requirements:_ 1.1, 1.2, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 4.5
   _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, DES-2.2
-- [ ] 4.2 SDK の失敗を `CallFailedError` に正規化する
+- [x] 4.2 SDK の失敗を `CallFailedError` に正規化する
   - `generateText` の例外を、plan Architecture Overview の「失敗の正規化」の規則で `CallFailedError` にして投げる:
     `RetryError` で `reason` が `maxRetriesExceeded` → `retries-exhausted`（`attempts` は `errors.length`、`cause` は最後の
     例外）／ `RetryError` でそれ以外 → `not-retryable`（同じ `attempts`・`cause`）／ 包まれていない例外で `maxRetries` が 0 かつ
@@ -335,7 +336,7 @@ plan C2 と「Interfaces / Contracts」のとおり、`src/lib/ai/basics.ts` の
   _Depends:_ 4.1
   _Requirements:_ 4.1, 4.2, 4.3, 4.4, 4.6, 4.7, 4.8
   _Traces:_ REQ-004, DES-2.2
-- [ ] 4.3 契約テストと型検査を GREEN にし、GREEN を記録する
+- [x] 4.3 契約テストと型検査を GREEN にし、GREEN を記録する
   - `tests/unit/llm-call-basics-contract.test.ts` が GREEN（型の指令が必要であること、import 元が `server-only` と `ai` だけ、
     子プロセスの Node で既定の条件では失敗し `--conditions=react-server` では成功すること）。`mise run typecheck` が成功する
     （`@ts-expect-error` がすべて必要）。
@@ -346,7 +347,7 @@ plan C2 と「Interfaces / Contracts」のとおり、`src/lib/ai/basics.ts` の
   _Depends:_ 4.2
   _Requirements:_ 1.3, 1.9, 6.4
   _Traces:_ REQ-001, REQ-006, DES-2.2
-- [ ] 4.4 `mise run check` を通す
+- [x] 4.4 `mise run check` を通す
   - `mise run check`（Biome）が、タスク 1〜4 で足したファイルすべてについて成功する。違反は `biome.json` を変えずに
     コードを直す。
   - 完了条件: `mise run check` が終了コード 0。
@@ -372,7 +373,7 @@ _Traces:_ REQ-005, REQ-008, DES-2.3
 hello は自動テストを持たない（6.8）。形はタスク 3.6 の `hello-task.test.ts`（静的な検査）で守り、振る舞いはタスク 5.3 の実測で
 確かめる。
 
-- [ ] 5.1 `mise.toml` に `hello` タスクを加える
+- [x] 5.1 `mise.toml` に `hello` タスクを加える
   - タスク `hello`: `run = "node --conditions=react-server scripts/hello.ts"`（1 つのコマンド）、`description` は「手元の Ollama の
     モデルを 1 回呼び、応答と usage を表示する。Ollama が要る。verify に含まれない」の要点を英語で書く（plan の mise タスクの
     表）。`verify`・`security` の構成と `depends` / `{ task = }` の参照は変えない（5.9）。
@@ -382,7 +383,7 @@ hello は自動テストを持たない（6.8）。形はタスク 3.6 の `hell
   _Depends:_ 4.3
   _Requirements:_ 5.8, 5.9
   _Traces:_ REQ-005, DES-2.3
-- [ ] 5.2 `scripts/hello.ts` を書く
+- [x] 5.2 `scripts/hello.ts` を書く
   - 上から順に読める 1 ファイル。構成（plan C3）: (1) import は `@ai-sdk/openai-compatible` の `createOpenAICompatible`、
     `ai` の `APICallError`、`../src/lib/ai/basics.ts` の `callModel` と例外クラス、`../src/lib/ai/model-allowlist.ts` の
     `MODEL_ALLOWLIST`（`.ts` 拡張子つき、型だけの import には `type`。ADR-7）。(2) 定数: Ollama の公式文書が示すローカルの
@@ -407,7 +408,7 @@ hello は自動テストを持たない（6.8）。形はタスク 3.6 の `hell
   _Depends:_ 5.1
   _Requirements:_ 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 8.6
   _Traces:_ REQ-005, REQ-008, DES-2.3
-- [ ] 5.3 hello を実測して R-5 に記録する
+- [x] 5.3 hello を実測して R-5 に記録する
   - 次の 3 つの状況で `mise run hello` を実行し、終了コードと標準出力・標準エラー、開始から終了までの秒数を R-5 に記録する:
     (a) Ollama を起動し allowlist の `ollama` のモデルを取得済み → 応答テキストと usage が表示され終了コード 0（5.1）、
     (b) Ollama を止めた → 起動方法と `ollama pull` が標準エラーに表示され終了コード 1、**開始から 15 秒以内**（5.4、NFR）、
@@ -448,7 +449,7 @@ _Traces:_ REQ-007, REQ-008, DES-2.6
 `テストで合格を確かめる`、`プロバイダを変える方法`、`この段で扱わないこと`（plan C6）。先頭の 4 つは既存の
 `docs-structure.test.ts` が検査する名前である。
 
-- [ ] 6.1 「読む」「動かす」の 2 節を書く
+- [x] 6.1 「読む」「動かす」の 2 節を書く
   - ファイルの冒頭（`#` 見出しと、段の目的・合格条件の 1 段落）と、`## 読む`、`## 動かす` を書く。
   - 「読む」: `generateText`、system / user の役割（ラボの `system` が SDK の `instructions` に当たること。ADR-2）、
     `temperature`、`maxOutputTokens`、usage（未報告は `undefined`）、エラーと再試行（`maxRetries`、既定 2、`retries-exhausted` /
@@ -466,7 +467,7 @@ _Traces:_ REQ-007, REQ-008, DES-2.6
   _Depends:_ 5.3
   _Requirements:_ 7.1, 7.2, 7.3, 7.8
   _Traces:_ REQ-007, DES-2.6
-- [ ] 6.2 「改造する」「テストで合格を確かめる」「プロバイダを変える方法」「この段で扱わないこと」を書く
+- [x] 6.2 「改造する」「テストで合格を確かめる」「プロバイダを変える方法」「この段で扱わないこと」を書く
   - `## 改造する`: 課題を 1 つ以上（7.4）。例: `temperature` を変えて応答の揺れを見る、`maxOutputTokens` を小さくして
     `outputTokens` と途中で切れる応答を見る、`maxRetries: 0` にして Ollama 未起動時の終了が速くなることを見る（research.md の
     「❓」への答え）、`maxOutputTokens: 0` にして `CallConfigError` を見る。テスト側の課題（`DEFAULT_MAX_RETRIES` を変えて

@@ -440,3 +440,129 @@ New feature（full）。段 2 は本リポジトリで最初に AI SDK を入れ
 - R-5 hello スクリプトの実測: 成功、未起動（開始から案内までの秒数。NFR 15 秒以内）、モデル未取得（5.1、5.4、5.5）
 - R-6 分岐カバレッジの計測結果と再現手順（NFR、ADR-10）
 - R-7 install 後の `pnpm permissions list` と、`Agent skills awaiting approval` が出ないこと（ADR-9）
+
+---
+
+# 実装時の記録（詳細）
+
+確認日: 2026-11-27（UTC 10:37 前後）。
+
+## R-1 採用版、照合、`mise run security`
+
+### 採用版（8.3）
+
+`pnpm view <pkg> time --json` で確かめた。基準は 2026-11-27T10:37Z、24h 前は 2026-11-26T10:37Z。
+`ai` の dist-tag `latest` は調査時（I-1）と同じ 7.0.183。24h を満たす最新の安定版でもある
+（7.0.183 は 2026-11-26T04:37Z。これより新しい 7.0.x は出ていない）。
+
+| Package | 採用版 | 公開（UTC） | 24h |
+|---------|--------|-------------|-----|
+| `ai` | 7.0.183 | 2026-11-26T04:37:00Z | 満たす |
+| `@ai-sdk/openai-compatible` | 3.0.96 | 2026-11-26T04:34:16Z | 満たす |
+| `server-only` | 0.0.1 | 2022-09-03T01:07:26Z | 満たす |
+| `zod` | 4.6.7 | 2026-10-12T16:29:37Z | 満たす |
+
+`pnpm install` は `minimumReleaseAge: 1440`（除外なし）のもとで成功（`Packages: +12`）。
+`pnpm install --frozen-lockfile` も成功し、`Agent skills awaiting approval` と `Ignored build scripts` は出ない。
+
+### install 直後の照合（タスク 1.3）
+
+probe のコードはリポジトリの外（`node --input-type=module -e` の 1 回の実行）で、コミットしていない。
+
+| 主張（research.md） | 同梱文書・ソース | 型定義 | probe（実行） | 結果 |
+|---------------------|------------------|--------|---------------|------|
+| I-3 `instructions` が正で `system` は非推奨 | — | `dist/index-*.d.ts` 1072 行 `instructions?: Instructions`、1076 行 `@deprecated Use \`instructions\` instead.` | `doGenerateCalls[0].prompt` = `[{"role":"system","content":"SYS"},{"role":"user","content":[{"type":"text","text":"USER"}]}]` | 一致 |
+| I-3 `temperature` / `maxOutputTokens` がそのまま届く | — | — | `0.3` / `42` | 一致 |
+| I-3 ツールなしで `tools` は `undefined`、`doStream` は呼ばれない | — | — | `tools undefined`、`doStreamCalls.length` = 0 | 一致 |
+| I-3 `maxRetries` の既定は 2 | `docs/03-ai-sdk-core/25-settings.mdx` 117 行「Default: `2`.」 | — | `src/util/prepare-retries.ts` 15 行 `defaultMaxRetries = 2`。`maxRetries: 1.5` は `AI_InvalidArgumentError` | 一致 |
+| I-4 usage は `number \| undefined` | — | `index-*.d.ts` 352・373 行 | 出力側を `total: undefined` にすると `outputTokens` は `undefined`（0 にならない） | 一致 |
+| I-5 `RetryError` の `reason` は `maxRetriesExceeded` / `errorNotRetryable` | `src/util/retry-error.ts` 8〜9 行 | — | 下の表 | 一致 |
+| I-5 `retry-after-ms` を待ち時間に使う | `src/util/retry-with-exponential-backoff.ts` 28 行 | — | 下の表（再試行 3 回が数 ms） | 一致 |
+| I-5 `APICallError.isRetryable` で再試行を判定 | 同上 | — | 下の表 | 一致 |
+| I-7 `MockLanguageModelV4`、`doGenerateCalls`、`doStreamCalls` | — | `dist/test/index.d.ts` 132〜140 行 | 実行して利用 | 一致 |
+| ADR-5 `GatewayError` が `ai` から export されるか | — | `grep GatewayError dist/index.d.ts` は 0 件（`@ai-sdk/gateway` から import するだけ） | `typeof ai.GatewayError` = `undefined` | **export されない**。判定は `APICallError` だけで行う（ADR-5 の「export されていなければ」の分岐） |
+
+失敗の並びごとの実測（`r` = `isRetryable: true`、`f` = `false`、どちらも `retry-after-ms: "0"`）:
+
+| 並び | `maxRetries` | 結果 | 試行 | I-5 の表 |
+|------|------|------|------|----------|
+| r, r, 成功 | 2 | 成功 | 3 | 一致 |
+| r, r, r | 2 | `RetryError` / `maxRetriesExceeded`、`errors` 3 件、`lastError` は `APICallError` | 3 | 一致 |
+| r | 0 | `APICallError`（包まれない） | 1 | 一致 |
+| f | 2 | `APICallError`（包まれない） | 1 | 一致 |
+| r, f | 2 | `RetryError` / `errorNotRetryable`、`errors` 2 件 | 2 | 一致 |
+| r, r, f | 2 | `RetryError` / `maxRetriesExceeded`、`errors` 3 件 | 3 | 一致 |
+
+全行が「一致」。plan.md を直す必要はない。ただし `GatewayError` は export されないため、タスク 4.2 の
+「包まれていない例外で `maxRetries` が 0」の判定は `APICallError` で `isRetryable === true` だけにする。
+
+### `mise run security`（8.3、タスク 1.4）
+
+- コマンド: `mise run security`。終了コード 0。
+- `security:osv`: `Scanned … pnpm-lock.yaml file and found 195 packages` / `No issues found`。
+- `security:audit`: `No known vulnerabilities found`。
+- 段 2 の依存で新しく出た advisory はない。
+
+## R-7 依存の権限（ADR-9）
+
+`pnpm permissions list`（2026-11-27）:
+
+```
+Denied:
+  ai     skills
+  sharp  build
+```
+
+`pnpm install --frozen-lockfile` の出力に `Agent skills awaiting approval` も `Ignored build scripts` も出ない。
+`pnpm-workspace.yaml` の `permissions: { ai: { skills: false } }` は `repo-policy.test.ts` が検査する。
+
+## R-2 合格判定テストの RED と GREEN（6.6）
+
+### RED（2026-11-27、`basics.ts` と `hello` タスクの実装前）
+
+| ファイル | コマンド | 終了コード | 失敗の要約（実装がないために落ちている根拠） |
+|----------|----------|-----------|--------------------------------------------------|
+| `tests/unit/repo-policy.test.ts`（追加した 1 件、タスク 1.1） | `mise run test`（`pnpm-workspace.yaml` に `permissions` を書く前） | 1 | `AssertionError: permissions must have an \`ai\` entry: expected -1 to be greater than or equal to 0`。ほかの 235 件は通過。`permissions` を足したあと 48 件すべて GREEN |
+| `tests/unit/llm-call-basics.test.ts`（タスク 3.1〜3.4） | `pnpm exec vitest run tests/unit/llm-call-basics.test.ts` | 1 | `Error: Cannot find package '@/lib/ai/basics' imported from …/llm-call-basics.test.ts`（スイートが 0 件で失敗。`basics.ts` がない） |
+| `tests/unit/llm-call-basics-contract.test.ts`（タスク 3.5） | `pnpm exec vitest run tests/unit/llm-call-basics-contract.test.ts` | 1 | 同じ `Cannot find package '@/lib/ai/basics'`。子プロセスの検査は `basics.ts` がないため import できない |
+| `tests/unit/hello-task.test.ts`（タスク 3.6） | `pnpm exec vitest run tests/unit/hello-task.test.ts` | 1 | 7 件中 4 件が失敗: `mise task "hello" does not exist`（5.8 の 2 件）、`scripts/hello.ts` がない（5.7、5.3 の 2 件）。残る 3 件（5.9。`hello` に届かないことの否定の検査）は、タスクがまだないため通る |
+| 型検査 | `mise run typecheck` | 1 | `TS2307: Cannot find module '@/lib/ai/basics'`。`@ts-expect-error` の 5 行が `TS2578: Unused '@ts-expect-error' directive`（`callModel` が型 `any` になるため。`basics.ts` ができると必要になる） |
+
+5.9 の 3 件は「届かないこと」を否定で調べるため、実装前から通る。非空虚の確認は R-3（`verify` から `hello` を
+参照させると落ちること）で行う。
+
+### GREEN（2026-11-27、タスク 4.3）
+
+| ファイル | コマンド | 結果 |
+|----------|----------|------|
+| `tests/unit/llm-call-basics.test.ts` | `pnpm exec vitest run tests/unit/llm-call-basics.test.ts` | 終了コード 0。71 件 GREEN |
+| `tests/unit/llm-call-basics-contract.test.ts` | `pnpm exec vitest run tests/unit/llm-call-basics-contract.test.ts` | 終了コード 0。6 件 GREEN（子プロセスの既定の条件は非 0 で `server-only` を含む出力、`--conditions=react-server` は 0） |
+| `tests/unit/repo-policy.test.ts` | `pnpm exec vitest run tests/unit/repo-policy.test.ts` | 終了コード 0。48 件 GREEN |
+| `tests/unit/hello-task.test.ts` | `mise run test` | **タスク 5 まで RED のまま**（`hello` タスクと `scripts/hello.ts` がないため 4 件失敗）。残る 3 件は通る |
+| 型検査 | `mise run typecheck` | 終了コード 0（`@ts-expect-error` の 5 行がすべて必要） |
+| 全体 | `mise run test` | 14 ファイル中 13 が GREEN、失敗は `hello-task.test.ts` の 4 件だけ。316 件 GREEN |
+
+RED のときと比べ、`llm-call-basics.test.ts` は 0 件（スイートの失敗）から 71 件が実行された。
+
+実装中の 1 件の修正: 最初の `success()` は `input = 3` のような既定引数を持ち、`undefined` を明示的に渡しても
+既定値に置き換わって 2.3 の 3 件が落ちた（実装の誤りでなくテストの補助関数の誤り）。引数をオブジェクト
+`{ input, output }` に変えて、`undefined` が保たれるようにした。
+
+## R-5 hello スクリプトの実測（5.3、ユーザーの環境で実施）
+
+確認日: 2026-11-27。Ollama の操作はユーザーが行い、貼られた出力を記録する。秒数は `date +%s` の差で測った（`time` の出力は貼られなかった）。
+
+| 状況 | 実行 | 標準出力 | 標準エラー | 終了コード | 秒数 | 判定 |
+|------|------|----------|------------|-----------|------|------|
+| (a) Ollama 起動、`llama3.2:3b` 取得済み | `mise run hello; echo "exit=$?"` | `model: llama3.2:3b` / `reply: Hello.` / `inputTokens: 38` / `outputTokens: 3` | なし | 0 | 未測定（5.3 の完了条件は (b) の秒数だけを求める） | 5.1 を満たす |
+| (b) Ollama 停止 | `start=$(date +%s); mise run hello; echo "exit=$?"; echo "elapsed=$(( $(date +%s) - start ))s"` | なし | `Could not connect to Ollama.` / 起動方法（open the Ollama app, or run `ollama serve`）/ `ollama pull llama3.2:3b` | 1 | **6 s** | 5.4 を満たす。NFR（15 秒以内）を満たす |
+| (c) Ollama 起動、モデル未取得 | 同上 | なし | `Ollama is running, but the model is not pulled yet. Pull it:` / `ollama pull llama3.2:3b` | 1 | 1 s | 5.5 を満たす |
+| (d) prompt / system の本文を出さない | 上の全出力 | 本文を含まない | 本文を含まない | — | — | 満たす（貼られた 3 状況の出力に限る） |
+| (e) 既定の条件で直接実行 | `node scripts/hello.ts` | なし | `server-only/index.js:1` の `Error: This module cannot be imported from a Client Component module…` | 未確認 | — | `server-only` の例外（I-9）。解説の根拠 |
+
+メモ:
+- (a) の入力トークン数 38 は、`system` と `prompt` を含む値として妥当（I-8 の実測 34 と同程度）。
+- (c) の確認で `llama3.2:3b` は取り除かれた状態（I-8 の判定ロジックは `statusCode === 404` で分岐するため、(c) はモデル未取得の経路を通った）。
+- (b) の 6 秒は I-8 の実測（約 6 秒）と一致し、NFR の 15 秒以内を満たす。`maxRetries` の既定値 2 は変えない。
+- (e) の終了コードは未取得（任意。`server-only` の例外は出力で確認済み）。
+- 5.3 完了（2026-11-27）。モデルを戻すには `ollama pull llama3.2:3b`（後続のタスクでは不要）。
