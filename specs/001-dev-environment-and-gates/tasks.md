@@ -1019,7 +1019,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-007, REQ-008, REQ-009, REQ-010
   _Depends:_ 12.5
   _Requirements:_ 10.2
   _Traces:_ REQ-010, DES-1.13
-- [ ] 12.7 マージ後に `security-daily.yml` と Dependabot を確認する
+- [x] 12.7 マージ後に `security-daily.yml` と Dependabot を確認する
   - PR が `main` にマージされた後（マージはユーザーの操作）に行う。`security-daily.yml` を `workflow_dispatch` で 1 回実行して結果を確認する（10.5）。Dependabot の設定エラーがないことを GitHub の Insights で確認する（10.11、10.12）。結果を R-9 に追記する。
   - research.md への追記は、マージ後の別の小さな commit（`docs:`）になる。ブランチの扱いはユーザーに確認する。ユーザーがマージ後の確認を見送った場合は、10.5・10.11・10.12 が未確認である旨を報告する。
   - 完了条件: `security-daily.yml` の手動実行が成功し、Dependabot の設定エラーがない。結果が R-9 にある。
@@ -1042,4 +1042,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-007, REQ-008, REQ-009, REQ-010
   ユーザーの決定で `gitleaks-pre-commit.test.ts` の自動テストを証拠にした（R-9）。
 - 12.5: PR #2。CI の `verify` は 78 s で緑、`verify-node27` は E2E で失敗（`docs/node27/` の未解決事項 1 と同じ症状、Linux でも再現）、
   ワークフローは `success`。単体テストは Node 27 でも 234/234（未解決事項 2 は解消）。
+- 12.7（2026-11-27）: PR #2 は 2026-11-25 にマージ済み。`security-daily.yml` は定期実行（11-26）と手動実行（11-27、run 45919206349）が成功。
+  Dependabot は設定どおり動き（実行 5 件が success、PR #4 は group 化、cooldown も満たす）、設定エラーは見つからなかった。ただし PR #4 が
+  TypeScript を夜間ビルド（`7.1.0-dev.…`）に上げようとしている点は、方針の判断が要るためユーザーに報告した（R-9）。
 
