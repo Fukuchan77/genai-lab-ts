@@ -333,6 +333,13 @@ describe("repo policy", { timeout: 120_000 }, () => {
         /^\s+groups:\s*\n\s+npm:\s*\n\s+patterns:\s*\n\s+- "\*"\s*$/m,
       );
     });
+
+    it("does not propose TypeScript nightly (-dev) builds (R-7)", () => {
+      // Checks the channel, not a version number: the range must start at a -dev build and stop before an rc.
+      expect(entryFor("npm")).toMatch(
+        /^\s+ignore:\s*\n\s+- dependency-name:\s*"typescript"\s*\n\s+versions:\s*\[">= [\d.]+-dev, < [\d.]+-rc"\]\s*$/m,
+      );
+    });
   });
 
   describe("Next.js configuration", () => {
