@@ -964,6 +964,31 @@ New feature（full）。リポジトリにアプリコードがなく、ZIP 足�
   含まない（10.2）。PR #2 の `mergeStateStatus` は `UNSTABLE`（必須でない `verify-node27` の失敗だけ。`verify` は SUCCESS）。
   有効化で、既定ブランチの削除・force push の禁止と PR の必須も効き始めた。bypass はない。
 
+  **マージ後の確認（タスク 12.7、2026-11-27、PR #2 は 2026-11-25T13:00:44Z にマージ、merge commit a0205df）**:
+  - `security-daily.yml`（10.5）: 既定ブランチに `.github/workflows/security-daily.yml` と `dependabot.yml` が入っていることを
+    `git ls-tree origin/main` で確認。`gh workflow list --all` で `security-daily` は `active`。定期実行（`schedule`）が
+    2026-11-26T15:42Z に成功済み（run 45851755320、13 s）。`gh workflow run security-daily.yml --ref main` の手動実行
+    （`workflow_dispatch`、2026-11-27T00:51Z、run 45919206349、commit a0205df）も `success`。ステップはすべて成功し、
+    `mise run security` は osv-scanner が `found 173 packages` / `No issues found`、`pnpm audit` が
+    `No known vulnerabilities found`。
+  - Dependabot（10.11、10.12）: Insights の画面は CLI から見られないため、同じことを示す代わりの証拠を使った。
+    `Dependabot Updates` ワークフローは `active`。マージの直後（2026-11-25T13:00:51Z）に npm と github-actions の更新の実行が
+    走り、その後（23:06Z）の 3 件も含め、確認した 5 件はすべて `success`（設定を読めない場合は実行が作られず、エラーが出る）。
+    設定どおり、npm の更新は 1 つの PR にまとまった（#3 は 2026-11-25T13:02Z に作られ、後続の #4 に置き換わって閉じられた。
+    Dependabot の文言は `Looks like these dependencies are updatable in another way, so this is no longer needed.`）。
+    PR のタイトルは `build(deps): Bump the npm group …`（commit-message の `build` と `scope`、groups の設定どおり）。
+    `gh api …/dependabot/alerts` は 0 件。
+  - cooldown（`default-days: 1`）: PR #4（2026-11-25T23:07Z 作成）が提案した版の公開時刻は、`next` 16.5.0-canary.63
+    2026-11-24T20:55Z（26 時間前）、`@biomejs/biome` 2.6.9 11-24T15:13Z、`@types/node` 26.6.7 11-24T19:34Z、`@types/react` 19.3.1
+    11-24T19:05Z、`typescript` 7.1.0-dev.20261124.1 11-24T08:25Z で、すべて作成時点で 24 時間以上たっていた。
+  - **気づいた点（未決定。ユーザーに報告）**: PR #4 は `typescript` を `7.1.0-beta` から `7.1.0-dev.20261124.1` に上げる
+    （PR #3 も同様）。これは npm の `next` タグの夜間ビルドで、R-7 の「7.1 の RC / stable は未公開のため beta を据え置く」と
+    据え置きの判断と合わない。AGENTS.md は exact pin を求め、`latest`・`canary`・`beta` のタグや範囲を禁じている。Dependabot の
+    提案は exact な版なので文面には反しないが、夜間ビルドへの更新は意図していない。PR の `verify` は SUCCESS、
+    `verify-node27` は FAILURE（既知の E2E の問題。`docs/node27/` の未解決事項 1）。PR #4 はマージも close もしていない。
+    対応の候補は、`dependabot.yml` に `typescript` の `ignore`（`update-types` か `versions`）を足すこと。これは設定の変更で、
+    タスク 8.3 の境界の内側だが、spec 001 の完了後の変更になるため、ユーザーの判断を待つ。
+
 - **R-10 非空虚の確認**（9.7）: 受け入れテストごとに、壊した対象、壊し方、失敗したことの出力。
 
   | テスト | 壊した対象 | 壊し方 | 失敗の出力（要点） | 確認日 |

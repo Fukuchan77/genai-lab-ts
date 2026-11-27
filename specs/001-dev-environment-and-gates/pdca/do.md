@@ -589,3 +589,14 @@ Implementation log written by `/sdd-impl`. Evidence (commands, outputs, PROVE re
 ### Task 12.6: ruleset — done (user approved)
 - `protect-main` enforcement disabled → active; added required_status_checks [verify] (integration 15368). Existing rules,
   conditions and empty bypass list kept. Read back with gh api; PR #2 mergeStateStatus UNSTABLE (node27 only). R-9 updated.
+
+### Task 12.7: post-merge checks — done
+- PR #2 merged 2026-11-25T13:00:44Z (a0205df). `security-daily.yml`: scheduled run 2026-11-26 and a manual `workflow_dispatch`
+  run (45919206349, 2026-11-27) both succeeded; `mise run security` on Linux: osv 173 packages / no issues, audit clean.
+- Dependabot: the Insights page is not reachable from the CLI, so the evidence is indirect (5 `Dependabot Updates` runs
+  succeeded, grouped npm PR #4, `build(deps)` title, all proposed versions older than the 1-day cooldown). That is weaker than
+  reading Insights; stated in R-9.
+- Finding for the user: Dependabot proposes TypeScript `7.1.0-dev.20261124.1` (the nightly `next` tag) over the pinned beta.
+  PR #4 left open; no change to `dependabot.yml` without a decision.
+- First attempt to read publish times failed (zsh did not word-split the loop list, all values empty); redone with a bash
+  script before anything was recorded.
