@@ -7,16 +7,18 @@ skills one stage at a time, from LLM calls up to tool calling with approval. It 
 on-ramp to `from-genai-to-agentic-ai`. Every test must pass deterministically without API
 keys or network access.
 
-## Current state (2026-11-25)
+## Current state (2026-11-27)
 
 Stage 1 ([spec 001](specs/001-dev-environment-and-gates/spec.md), development environment
-and gates) is implemented on the branch `feat/dev-environment-and-gates` and is still in
-progress until its PR is merged into `main`. It brings the foundation only: the toolchain
-and dependency pins (`mise.toml`, `mise.node27.toml`, `package.json`, `pnpm-lock.yaml`),
-the git hooks (`lefthook.yml`), the CI workflows, a placeholder page, the model ID
-allowlist, the gate scripts in `scripts/`, and tests that check the gates themselves. No
-AI code exists yet; stages 2 and later add it. The commands below are the tasks that
-`mise tasks ls` lists.
+and gates) is complete. Its PR (#2) was merged into `main` on 2026-11-25, and the required
+CI check `verify` is enforced by the `protect-main` ruleset. The Node 27 lane
+(`verify-node27`) is informational: its E2E step fails on Node 27 alpha, and that failure is
+recorded in [docs/node27/2026-11-23-initial-lane.md](docs/node27/2026-11-23-initial-lane.md).
+Stage 1 brings the foundation only: the toolchain and dependency pins (`mise.toml`,
+`mise.node27.toml`, `package.json`, `pnpm-lock.yaml`), the git hooks (`lefthook.yml`), the
+CI workflows, a placeholder page, the model ID allowlist, the gate scripts in `scripts/`,
+and tests that check the gates themselves. No AI code exists yet; stages 2 and later add it.
+The commands below are the tasks that `mise tasks ls` lists.
 
 ## Sources of truth
 

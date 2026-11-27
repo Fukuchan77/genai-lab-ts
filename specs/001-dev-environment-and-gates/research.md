@@ -978,6 +978,12 @@ New feature（full）。リポジトリにアプリコードがなく、ZIP 足�
     Dependabot の文言は `Looks like these dependencies are updatable in another way, so this is no longer needed.`）。
     PR のタイトルは `build(deps): Bump the npm group …`（commit-message の `build` と `scope`、groups の設定どおり）。
     `gh api …/dependabot/alerts` は 0 件。
+  - **Insights の目視確認（2026-11-27、ユーザー）**: GitHub の Dependabot 画面（`/network/updates`）に設定エラーの表示はなく、
+    直近の実行もエラーなく完了していた。これは補助の人手観測で、時刻と対象の実行を特定していない。10.11・10.12 の主根拠は
+    `.github/dependabot.yml`、`repo-policy.test.ts` の Dependabot の検査、下の cooldown の比較である。
+    再検証できる証拠として、`gh run list --workflow "Dependabot Updates"` の 2026-11-27 時点の最新 6 件を残す（すべて `success`）:
+    45945406957（npm、2026-11-27T05:22Z）、45942461172（npm）、45942460095（github-actions）、45942459817（npm、
+    いずれも 2026-11-27T04:52Z）、45718683485（npm）、45718676465（github-actions、いずれも 2026-11-25T23:06Z）。
   - cooldown（`default-days: 1`）: PR #4（2026-11-25T23:07Z 作成）が提案した版の公開時刻は、`next` 16.5.0-canary.63
     2026-11-24T20:55Z（26 時間前）、`@biomejs/biome` 2.6.9 11-24T15:13Z、`@types/node` 26.6.7 11-24T19:34Z、`@types/react` 19.3.1
     11-24T19:05Z、`typescript` 7.1.0-dev.20261124.1 11-24T08:25Z で、すべて作成時点で 24 時間以上たっていた。
@@ -985,9 +991,11 @@ New feature（full）。リポジトリにアプリコードがなく、ZIP 足�
     （PR #3 も同様）。これは npm の `next` タグの夜間ビルドで、R-7 の「7.1 の RC / stable は未公開のため beta を据え置く」と
     据え置きの判断と合わない。AGENTS.md は exact pin を求め、`latest`・`canary`・`beta` のタグや範囲を禁じている。Dependabot の
     提案は exact な版なので文面には反しないが、夜間ビルドへの更新は意図していない。PR の `verify` は SUCCESS、
-    `verify-node27` は FAILURE（既知の E2E の問題。`docs/node27/` の未解決事項 1）。PR #4 はマージも close もしていない。
-    対応の候補は、`dependabot.yml` に `typescript` の `ignore`（`update-types` か `versions`）を足すこと。これは設定の変更で、
-    タスク 8.3 の境界の内側だが、spec 001 の完了後の変更になるため、ユーザーの判断を待つ。
+    `verify-node27` は FAILURE（既知の E2E の問題。`docs/node27/` の未解決事項 1）。PR #4 は 2026-11-25 の時点ではマージも close もしていない
+    （当時の観測値）。その後、2026-11-27T04:52Z に PR #5（`dependabot.yml` に `typescript` の `ignore`
+    `>= 7.1.0-dev, < 7.1.0-rc` を追加）がマージされ、同時刻に PR #4 は close された（`gh pr view 4` は `CLOSED`、`mergedAt` なし）。
+    npm の更新は PR #6（`typescript` を含まない 5 件）に置き換わり、マージ済み。
+    これは PR #5 で対応済み（上の `ignore`）。夜間ビルドへの提案は、以後は ignore で止まる。
 
 - **R-10 非空虚の確認**（9.7）: 受け入れテストごとに、壊した対象、壊し方、失敗したことの出力。
 
