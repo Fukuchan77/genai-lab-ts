@@ -98,7 +98,7 @@ New feature（full）。段 2 は本リポジトリで最初に AI SDK を入れ
 - **Evidence**: `index-D1zb0Eh5.d.ts` 348 行付近の `type LanguageModelUsage`、`docs/03-ai-sdk-core/55-testing.mdx`
   （モックの usage の形）、probe の `USAGE {"inputTokens":7,...}`（出力側は未定義）、`usage-after-retry {"i":20,"o":200}`。
 
-### I-5 再試行の仕組み（4.1〜4.7、ADR-5、ADR-6）
+### I-5 再試行の仕組み（4.1〜4.8、ADR-5、ADR-6）
 
 - **Question**: `maxRetries` の再試行は何を対象にし、失敗時にどの例外を投げるか。テストで待ち時間をなくせるか。
 - **Findings**（`@ai-sdk/provider-utils@5.0.85` の `retryWithExponentialBackoffInternal`、`ai` の

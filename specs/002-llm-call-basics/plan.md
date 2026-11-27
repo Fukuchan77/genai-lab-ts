@@ -131,12 +131,12 @@ flowchart TD
   4. 成功したら `{ text: result.text, usage: { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens } }`
      を新しい object として返す。`text` は加工しない（2.1）。トークン数の `undefined` は `undefined` のまま（2.3）。
   5. `generateText` が投げた例外は、Architecture Overview の正規化の規則で `CallFailedError` にして投げる
-     （4.2、4.3、4.4、4.6、4.7、ADR-5）。
+     （4.2、4.3、4.4、4.6、4.7、4.8、ADR-5）。
 - **Owns**: 呼び出し設定の検証規則、既定の再試行回数、結果の形、失敗の分類とメッセージ。
 - **Does NOT own**: プロバイダとモデルの生成、モデル ID（呼び出し側と allowlist）。再試行の判定・間隔・回数の数え方
   （AI SDK）。表示や終了コード（C3）。ストリーミング、構造化出力、タイムアウト、ツール（段 3〜5）。
 - **Requirements**: 1.1, 1.2, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5,
-  4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7（1.3 は C2 の型と C4 の型検査で満たす）
+  4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8（1.3 は C2 の型と C4 の型検査で満たす）
 
 ### C3 HelloScript (DES-2.3)
 
@@ -184,6 +184,8 @@ flowchart TD
   API キーもなしに決定論的に判定する。
 - **Public interface**（テストファイルと、各ファイルが検証する要件）:
   - `tests/unit/llm-call-basics.test.ts`（振る舞い。`MockLanguageModelV4` だけを使う）:
+    - このファイルの `describe` はすべて 1 件 1000 ms のタイムアウトを持つ（NFR、ADR-6。1 秒の制限はこのファイルの
+      モックだけのテストに適用し、子プロセスや `mise` を起動するテストには適用しない。spec への追記 4、分析後の修正 M-2）。
     - 役割と設定（1.1、1.2、1.4〜1.8）: 渡したモックが生成要求を受けること、`doGenerateCalls[0].prompt` の役割の順序と
       本文、system 省略時は user 1 件、`temperature` / `maxOutputTokens` の値の受け渡しと省略時の `undefined`（1.7 の「含めない」は、モデルが受け取る
       生成要求の値が `undefined` であること。キーの有無は見ない。spec への追記 3）、
@@ -195,11 +197,10 @@ flowchart TD
     - 設定値の拒否（3.1〜3.5）: 不正値の表（`""`、空白だけ（全角空白を含む）、`NaN`、`±Infinity`、`0`、`-1`、`1.5`）
       ごとに `CallConfigError`・`field` の値・`doGenerateCalls` が 0 件。境界の正しい値（`maxOutputTokens: 1`、
       `maxRetries: 0`、`temperature: 0`）は受け付ける。メッセージに prompt / system の本文（目印の文字列）が現れない。
-    - 再試行とエラー（4.1〜4.7）。この `describe` は 1 件 1000 ms のタイムアウトを持つ（NFR、ADR-6。1 秒の制限は
-      このファイルのモックだけのテストに適用し、子プロセスや `mise` を起動するテストには適用しない。spec への追記 4）:
-      `maxRetries` ごとの「k 回失敗のあと成功」（試行 k + 1）、「使い切り」（試行 `maxRetries` + 1、
-      `retries-exhausted`）、再試行しない例外（試行 1、`not-retryable`）、再試行可能 → 再試行しない（試行 2、
-      `not-retryable`）、`maxRetries: 0`（試行 1、`retries-exhausted`）、省略時（試行 3）、`cause` が最後の試行の例外と
+    - 再試行とエラー（4.1〜4.8。ADR-6）: `maxRetries` ごとの「k 回失敗のあと成功」（試行 k + 1）、「使い切り」
+      （試行 `maxRetries` + 1、`retries-exhausted`）、再試行しない例外（試行 1、`not-retryable`）、再試行可能 →
+      再試行しない（試行 2、`not-retryable`。4.8）、再試行可能 → 再試行可能 → 再試行しない（許された最後の試行なので
+      試行 3、`retries-exhausted`、`cause` は再試行しない例外。4.8）、`maxRetries: 0`（試行 1、`retries-exhausted`）、省略時（試行 3）、`cause` が最後の試行の例外と
       同一であること、SDK の例外のメッセージに目印の文字列を入れても `CallFailedError` のメッセージに現れないこと。
   - `tests/unit/llm-call-basics-contract.test.ts`（型と読み込みの契約）:
     - 型（1.2、1.3、ADR-3）: 余分なキー（`topP`、`instructions`、`abortSignal` など）を書いた object リテラルの行、
@@ -520,7 +521,7 @@ tasks.md の `_Boundary:_` は、この表のファイルだけを対象にで�
 - 1 回目が再試行しない例外（認証の失敗 401、不正な要求 400 など、`APICallError` 以外の例外を含む）→ 試行 1 回で
   `CallFailedError`（`not-retryable`）（4.3）
 - 再試行のあと再試行しない例外 → その時点で止まり `CallFailedError`（`not-retryable`）。ただしそれが許された最後の試行なら
-  SDK に合わせて `retries-exhausted`（I-5、ADR-5）
+  SDK に合わせて `retries-exhausted`（4.8、I-5、ADR-5）
 - `maxRetries: 0` で再試行可能な例外 → SDK は包まずに投げる。試行 1 回で `CallFailedError`（`retries-exhausted`）（4.4）
 - `maxRetries` 省略 → 上限 2 回、試行は最大 3 回（4.5）
 - SDK の例外のメッセージが prompt / system を含む → `CallFailedError` のメッセージに写さない（4.7）
@@ -561,7 +562,7 @@ hello スクリプト（C3）:
 | 8. 秘密情報とサプライチェーン | ✅ | API キーを読まない（hello は環境変数を読まず、プロバイダも `apiKey` なしで環境変数を読まない。I-8）。prompt・system・`cause` の丸ごとを出力しない（4.7、5.7）。依存は exact pin、24h ゲート（除外なし）、install スクリプトなし（I-12）、agent skill を拒否（ADR-9）。`mise run security` を実装時に通す（R-1） |
 | 9. 事実は実測、版は現時点の採用版 | ✅ | API・既定値・例外・Ollama の挙動は、同梱文書・型定義・ソース・実行で確認した（research.md I-1〜I-12）。テストと文書は版番号を合否に使わない |
 | 10. 依存は plan に宣言してから | ✅ | 依存は C1 の表に限り、理由を添える。`@vitest/coverage-v8` も計測専用として宣言する（ADR-10）。Ollama は手動の実行でだけ使うローカルのサービスで、API キーが要らず、テストはモックの経路を持つ。新しい CI ジョブはない |
-| 11. 段階ゲートを飛ばさない | ✅ | 段 1 は `main` に統合済み（PR #7）。今回の `-y` は承認済みの要件を確認しただけ。設計とタスクは人間が承認する。実装フェーズごとに別モデルファミリー（Codex）の敵対的レビューを `.sdd/reviews/` に 1 ラウンド 1 ファイルで残す |
+| 11. 段階ゲートを飛ばさない | ✅ | 段 1 は `main` に統合済み（PR #2）。今回の `-y` は承認済みの要件を確認しただけ。設計とタスクは人間が承認する。実装フェーズごとに別モデルファミリー（Codex）の敵対的レビューを `.sdd/reviews/` に 1 ラウンド 1 ファイルで残す |
 | Additional Constraints: ツールチェーン | ✅ | `hello` は mise タスク。`node` は mise 管理の版 |
 | Additional Constraints: Node のレーン | ✅ | 契約テストの子プロセス（型の除去と `--conditions`）は Node 27 のレーンの `verify` でも走り、結果は参考扱い。Node 27 でだけ必要な修正が出たら `docs/node27/` に記録する |
 | Additional Constraints: lint / format・テストのモック | ✅ | Biome 単一。unit は `ai/test` のモックモデル。E2E は変えない |
@@ -604,6 +605,7 @@ CRITICAL な違反はない。⚠️ の 1 件（原則 4 の順序）は、task
 | 4.5 | C2 | `llm-call-basics.test.ts` |
 | 4.6 | C2 | `llm-call-basics.test.ts` |
 | 4.7 | C2 | `llm-call-basics.test.ts` |
+| 4.8 | C2 | `llm-call-basics.test.ts` |
 | 5.1 | C3 | R-5（成功時の表示と終了コード 0） |
 | 5.2 | C3 | `check:model-ids`（`scripts/` を走査）、レビュー |
 | 5.3 | C3, C5 | `hello-task.test.ts`（`scripts/hello.ts` を読むだけの静的な検査）、レビュー |

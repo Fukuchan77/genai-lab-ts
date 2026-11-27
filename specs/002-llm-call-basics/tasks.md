@@ -23,9 +23,9 @@
   （タスク 8.4 の worktree。タスク 8.1・8.2 で一時的に壊して戻すファイルは境界に含める）は別。
   `specs/002-llm-call-basics/spec.json` は SDD コマンドが更新するため担当タスクを置かない。`.sdd/reviews/` の
   敵対的レビューの記録は `/sdd-impl` の手順で作る。
-- **ブランチとコミット**: いまは `main` にいるため、最初のコミットの前に `feat/llm-call-basics` を作る。未コミットの
-  spec 文書（`specs/002-llm-call-basics/`、`.sdd/reviews/002-llm-call-basics-plan-codex.md`）は、タスク 1 の前に
-  別のコミット（`docs(spec)`）にする。コミットはユーザーの確認を得て行うチェックポイントにまとめる:
+- **ブランチとコミット**: 作業ブランチは `feat/llm-call-basics`（作成済み）。spec 文書（`specs/002-llm-call-basics/`、
+  `.sdd/reviews/002-llm-call-basics-plan-codex.md`）は `ac895e5`（`docs(spec)`）でコミット済みで、この修正（分析後の
+  修正）は CP-A より前の別のコミット（`docs(spec)`）にする。コミットはユーザーの確認を得て行うチェックポイントにまとめる:
   **CP-A** タスク 2 の完了後（`build(deps)`、設定）、**CP-B** タスク 5.2 の完了後（テスト、`basics.ts`、hello）、
   **CP-C** タスク 6.2、7.1、7.2 の完了後（解説、統治文書）、**CP-D** タスク 8 の完了後（記録）。RED の間は
   `mise run typecheck` が失敗する（`basics.ts` がないため）ので、CP-B より前にテストだけをコミットしない。
@@ -174,7 +174,7 @@ completing this major task. -->
 
 _Boundary:_ `tests/unit/llm-call-basics.test.ts`, `tests/unit/llm-call-basics-contract.test.ts`, `tests/unit/hello-task.test.ts`, `specs/002-llm-call-basics/research.md`
 _Depends:_ 1, 2
-_Requirements:_ 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 5.3, 5.7, 5.8, 5.9, 6.1, 6.2, 6.3, 6.4, 6.6, 6.8
+_Requirements:_ 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 5.3, 5.7, 5.8, 5.9, 6.1, 6.2, 6.3, 6.4, 6.6, 6.8
 _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, DES-2.5
 
 憲章 原則 4: 実装（タスク 4・5）より先に、ここで 3 ファイルを書いて RED を確認する。`src/lib/ai/basics.ts` はまだ
@@ -185,7 +185,8 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, DES-2.5
 再試行可能な例外・再試行しない例外を作る関数、決めた順に失敗と成功を返すモック）は `llm-call-basics.test.ts` の中に置く。
 
 - [ ] 3.1 役割と設定の受け渡しのテスト（1.1、1.2、1.4〜1.8）
-  - `tests/unit/llm-call-basics.test.ts` を作り、次を検証する: 渡したモックの生成が呼ばれること（1.1）、`system` ありで
+  - `tests/unit/llm-call-basics.test.ts` を作る。ファイル内のすべての `describe`（3.1〜3.4）に 1 件 1000 ms のタイムアウトを
+    付ける（NFR。spec の分析後の修正 M-2）。次を検証する: 渡したモックの生成が呼ばれること（1.1）、`system` ありで
     `doGenerateCalls[0].prompt` が system 役割 → user 役割の順で本文が一致すること（1.4）、`system` 省略で user 役割 1 件だけ
     （1.5）、`temperature` / `maxOutputTokens` の値がそのまま渡ること（1.6）、省略時はモデルが受け取る値が `undefined`
     （1.7。キーの有無は見ない。spec への追記 3）、`tools` が `undefined`・`doStreamCalls` が空・`doGenerateCalls` が 1 件
@@ -220,14 +221,14 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, DES-2.5
   _Depends:_ 3.2
   _Requirements:_ 3.1, 3.2, 3.3, 3.4, 3.5, 6.3
   _Traces:_ REQ-003, REQ-006, DES-2.5
-- [ ] 3.4 再試行とエラーのテスト（2.5、4.1〜4.7）
-  - 同じファイルに、この `describe` だけ 1 件 1000 ms のタイムアウトを付けて足す（NFR。ADR-6）。再試行可能な例外は
+- [ ] 3.4 再試行とエラーのテスト（2.5、4.1〜4.8）
+  - 同じファイルに、1 件 1000 ms のタイムアウトを付けた `describe` として足す（NFR。ADR-6）。再試行可能な例外は
     `APICallError` で `isRetryable: true` と `responseHeaders` の `retry-after-ms: "0"` を持ち、実時間を待たない。
     `maxRetries` ごとに次を検証する: k 回（1 ≤ k ≤ `maxRetries`）失敗したあと成功して試行が k + 1 回（4.1）、
     `maxRetries` + 1 回続けて失敗して試行が `maxRetries` + 1 回で `CallFailedError`（`reason` は `retries-exhausted`、
     `attempts` が一致。4.2）、再試行しない例外で試行 1 回・`not-retryable`（4.3）、再試行可能 → 再試行しない例外で試行 2 回・
-    `not-retryable`（plan の分類。4.3 の「試行 1 回」は最初の失敗が再試行しない例外の場合）、再試行可能・再試行可能・
-    再試行しない例外の順で、それが許された最後の試行なら `retries-exhausted`（plan ADR-5、「Error Handling」。`cause` は
+    `not-retryable`（4.8。4.3 の「試行 1 回」は最初の失敗が再試行しない例外の場合）、再試行可能・再試行可能・
+    再試行しない例外の順で、それが許された最後の試行なら `retries-exhausted`（4.8、plan ADR-5、「Error Handling」。`cause` は
     再試行しない例外）、`maxRetries: 0` で再試行しない例外のとき試行 1 回・`not-retryable`、`maxRetries: 0` で再試行可能な例外の
     とき試行 1 回・`retries-exhausted`（4.4）、再試行のあとに成功したとき、成功した試行の usage が返ること（2.5。失敗した試行の
     値と異なる値を使って区別する）、`maxRetries` 省略で試行 3 回（4.5）、
@@ -236,7 +237,7 @@ _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, DES-2.5
   - 完了条件: 追加したテストが `basics.ts` の import の失敗で RED のまま。
   _Boundary:_ `tests/unit/llm-call-basics.test.ts`
   _Depends:_ 3.3
-  _Requirements:_ 2.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 6.2, 6.3
+  _Requirements:_ 2.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 6.2, 6.3
   _Traces:_ REQ-002, REQ-004, REQ-006, DES-2.5
 - [ ] 3.5 型と読み込み条件の契約テスト（1.1、1.2、1.3、1.9）
   - `tests/unit/llm-call-basics-contract.test.ts` を作る。**型**: 余分なキー（`topP`、`instructions`、`abortSignal` など）を書いた
@@ -289,7 +290,7 @@ completing this major task. -->
 
 _Boundary:_ `src/lib/ai/basics.ts`, `tests/unit/llm-call-basics.test.ts`, `tests/unit/llm-call-basics-contract.test.ts`, `tests/unit/hello-task.test.ts`, `tests/unit/repo-policy.test.ts`, `tests/unit/setup/server-only-stub.ts`, `vitest.config.ts`, `tsconfig.json`, `specs/002-llm-call-basics/research.md`
 _Depends:_ 3
-_Requirements:_ 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 6.4
+_Requirements:_ 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 6.4
 _Traces:_ REQ-001, REQ-002, REQ-003, REQ-004, REQ-006, DES-2.2
 
 plan C2 と「Interfaces / Contracts」のとおり、`src/lib/ai/basics.ts` の 1 ファイルを 3 つの継ぎ目で書く。import するのは
@@ -329,10 +330,10 @@ plan C2 と「Interfaces / Contracts」のとおり、`src/lib/ai/basics.ts` の
     `cause` のメッセージ・`prompt`・`system` を含めない（4.7）。`cause` は最後の試行の例外をそのまま持つ（4.6）。
     判定に例外のメッセージの文字列を使わない。
   - 完了条件: `pnpm exec vitest run tests/unit/llm-call-basics.test.ts` が、タスク 3.4 のテストを含めてすべて GREEN。
-    再試行のテストの各件が 1000 ms 以内に終わる。
+    `llm-call-basics.test.ts` の各件が 1000 ms 以内に終わる。
   _Boundary:_ `src/lib/ai/basics.ts`
   _Depends:_ 4.1
-  _Requirements:_ 4.1, 4.2, 4.3, 4.4, 4.6, 4.7
+  _Requirements:_ 4.1, 4.2, 4.3, 4.4, 4.6, 4.7, 4.8
   _Traces:_ REQ-004, DES-2.2
 - [ ] 4.3 契約テストと型検査を GREEN にし、GREEN を記録する
   - `tests/unit/llm-call-basics-contract.test.ts` が GREEN（型の指令が必要であること、import 元が `server-only` と `ai` だけ、
