@@ -619,9 +619,69 @@ RED のときと比べ、`llm-call-basics.test.ts` は 0 件（スイートの�
 9 か所すべてで失敗し、戻したあと `git diff` が空。Codex が指摘した hello の出力の検査（`console.error(PROMPT)` など 4 つの変異）は
 `.sdd/reviews/002-llm-call-basics-1-5.2-codex.md` に記録済み。
 
+### `explain()` の出力の検査（5.6、5.7。`/sdd-ship` の Codex 指摘への対応）
+
+確認日: 2026-11-27。`/sdd-ship` の Codex レビュー（`.sdd/reviews/002-llm-call-basics-ship-codex.md`、MEDIUM）の指摘どおり、
+上の 9 か所と 1-5.2 レビューの 4 つの変異は、`explain()` の本体の中で `cause` を文字列にする回帰を捕まえなかった。再現:
+`scripts/hello.ts` の `explain()` の返り値を `return String(error.cause);` に変えると、修正前の `hello-task.test.ts` は
+`Tests 8 passed (8)`、終了コード 0 だった。
+
+経緯（Codex のレビューを 8 回。再現できた指摘だけを直した）:
+
+| 回 | 直した対象 | Codex が示した回避（再現済み） | 今の扱い |
+|----|-----------|----------------------------------|----------|
+| 1 | 名前の許可 + 波括弧の数え方 | テンプレートの `}`、`PROMPT` を代入した変数 | 構文木の検査で塞ぐ |
+| 2 | 文字列の走査 + 閉じた名前の集合 | 正規表現の `}`、prompt の文面をそのまま書いた文字列 | 同上 |
+| 3 | `typescript/sync` の構文木（Step 7 の調査で選んだ別の方法） | 短い断片の `join("")` | 同上 |
+| 4 | `PULL_COMMAND`・`MODEL_ID` の中身、`console`・`process`・`throw` | `PULL_COMMAND = "..." + PROMPT`、`console?.error(...)` | 同上 |
+| 5 | import の許可リスト、トップレベル文、shadowing | `node:fs` の `writeSync` と `Symbol.hasInstance` を持つ偽の `CallFailedError` | **範囲外にした（下記）** |
+| 6 | 宣言の許可リスト、`result` の由来 | catch の中の `const explain = unsafeExplain` | **範囲外にした（下記）** |
+| 7（縮小後） | catch から逃げるエラー、`console.debug`・`warn` の拒否ケース | `await Promise.reject(error)` | `error` は `explain(error)` の引数と `explain()` の中だけ、という規則を足した |
+| 8 | （指摘なし） | 現実的な漏えいは残っていない | APPROVE_WITH_NOTES |
+
+**範囲の決定（ユーザーの判断。2026-11-27）**: この静的検査が防ぐのは、保守者や学習者が `hello.ts` を直す途中で起こす現実的な回帰
+（`console.error(error)`、`cause` の出力、prompt の出力、`error.message` から作ったメッセージ、`util.inspect` など）である。
+`hello.ts` を敵対的に書き換えるコード（言語の組み込みの上書き、`Symbol.hasInstance`、`node:fs` の追加、取り込んだクラスの shadowing、
+catch の中で別の整形関数に替える）は防がない。5・6 回目で足した import の許可リストとトップレベル文・宣言の検査は、
+解説の「プロバイダを変える方法」（import とモデル生成の 1 行を書き換える）に反するため外した。外したあとも、その手順どおりの書き換えと、
+`explain()` のローカル変数の改名は通ることを確かめた（下の表の対照）。
+
+検査の仕組み（`tests/unit/hello-task.test.ts` の `explainLeaks`）:
+
+- 構文解析: インストール済みの `typescript`（7.1.0-beta）の `typescript/sync`（`API.createSourceFile`）で `scripts/hello.ts` の文面を
+  解析し、`typescript/ast/is` と `childrenIter` で構文木をたどる。ネイティブのコンパイラを子プロセスとして起動し、標準入出力の
+  パイプでやり取りする。ネットワークは使わず、依存は増えない。コンパイラは `typescript` の optional dependency で、
+  `pnpm-lock.yaml` に `@typescript/typescript-linux-x64` がある（CI の ubuntu で動くことは**未確認**。CI でまだ走らせていない）。
+  `hello.ts` は読むだけで、import も実行もしない（6.8）。
+- 規則（閉じた集合。一覧にない構文・名前は拒否）: `explain()` の本体に使える構文の種類と読めるプロパティ、`error` と
+  `error.cause` の使い方、`error` が `explain(error)` の引数と `explain()` の中にしか現れないこと、`PULL_COMMAND` と `MODEL_ID` の中身、
+  `console`（`log` と `error(explain(error))` だけ、`?.` と添字は不可）、`process.exitCode = 数値` だけ、`throw` と動的 import の禁止、
+  文字列とテンプレートが `PROMPT`・`SYSTEM` の文面を含まないこと（`join` でつないだ結果を含む）。
+- 限界: 静的な検査なので、参照できるものを縛るだけで、実際に出力される文字列は調べない（実際の出力は R-5 の手作業の実測）。
+  上の「範囲の決定」の敵対的な書き換えは防がない。`typescript/sync` は beta の公開 API で、版を上げると変わることがある
+  （そのときはこのテストが失敗する）。`hello.ts` の構成（関数 `explain`、変数 `result`、`PULL_COMMAND`、`MODEL_ID` など）を変える
+  編集は、このテストも一緒に直す必要がある。振る舞いで確かめる案（`explain()` を `src/` の関数にして偽のエラーを渡す）は、
+  `hello.ts` と `src/` の変更を伴うので、段 3 以降の候補として残す。
+
+テスト自身の非空虚: 拒否すべき断片と構成が約 60 件あり、それぞれ**固有の理由**を `toContain` で確かめる。ほかに、prompt の写しの検出、
+解析対象が見つからないときの失敗、実物の形と `explain()` のローカル変数の改名を通す対照がある。
+
+実行: `pnpm exec vitest run tests/unit/hello-task.test.ts`。壊したのは `scripts/hello.ts`。1 か所ずつ壊し、HEAD のコピーを書き戻して
+`git diff -- scripts/hello.ts` が空であることを確かめた（スクリプトは使い捨てで、コミットしない）。縮小後のテストで再実行した。
+
+| 壊し方 | 件数 | 結果 |
+|--------|------|------|
+| 1〜4 回目の回避（`explain()` の返り値と補間、正規表現、prompt の文字列・分割・`join`、`PULL_COMMAND`・`MODEL_ID`、`console?.error`・`console["error"]`、`console.error(error)`、`throw`、`process.stderr.write`） | 28 | すべて失敗 |
+| 7 回目: `await Promise.reject(error)`、`console.debug(error.cause)`、`queueMicrotask` での再 throw、`console.warn(error)` | 4 | すべて失敗 |
+| 対照: 出力が同じまま `detail` を `summary` に改名 | 1 | 通る |
+| 対照: 解説どおりのプロバイダの差し替え（import とモデル生成の 1 行） | 1 | 通る（`Tests 72 passed (72)`） |
+| 範囲外にした 5・6 回目の回避（`node:fs` + `Symbol.hasInstance`、catch の中の別の整形関数） | 2 | 通る（意図した範囲外。縮小の直後に確認） |
+
+戻したあとの `git diff -- scripts/hello.ts` は空。
+
 ### 結論
 
-26 か所すべてで、壊すとテストが失敗した。壊してもテストが失敗しない箇所はなく、テストファイルの修正は不要だった。
+26 か所すべてで、壊すとテストが失敗した（上の 32 か所を足すと 58 か所）。壊してもテストが失敗しない箇所はなく、テストファイルの修正は不要だった。
 補足: 実装前から通る 5.9 の 3 件（否定の検査）は、上の `verify` / `security` への参照の追加で失敗することを示した（R-2 の注記に対応）。
 
 ## R-4 `mise run verify` と作業ツリー（6.5、8.7、ADR-7）
