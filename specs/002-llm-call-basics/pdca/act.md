@@ -70,9 +70,9 @@ PROVE は 58 か所すべてで失敗を確かめ、`basics.ts` の分岐カバ�
 
 1. **【ユーザー】PR #10 をレビューしてマージする**。`verify` は緑。`verify-node27` の失敗は既知の E2E の問題で、ユニットテストは
    Node 27 でも通っている。
-2. **【Claude・マージ前】未コミットのファイルをコミットする**: `specs/002-llm-call-basics/spec.json`（`record-pr` の書き換え）、
-   本 act.md と check.md、`.sdd/mistakes/002-llm-call-basics-2026-11-28.md`、パターンの更新。`docs(sdd)` の 1 コミットにして PR #10 に push する。
-3. **【Claude】traceability.md の Test 列と Commit 列を埋める**（PR 本文の表が元）。2 と同じコミットに含められる。
+2. ~~**【Claude・マージ前】未コミットのファイルをコミットする**~~ → **済（2026-11-28、`f239c23`）**。
+3. ~~**【Claude】traceability.md の Test 列と Commit 列を埋める**~~ → **済（2026-11-28）**。PR 本文の表と、各テストファイルが
+   引用する受け入れ基準の番号から割り当てた。
 4. **【ユーザー】Learnings → Rules の候補を判断する**: `/sdd-impl` Step 7 の手前の確認、`tdd-workflow.md` Phase 3.5 の対照、
    `sdd-autopilot-state.sh` の警告。いずれもグローバルの skill の変更なので、承認があってから入れる。
 5. **【段 3】`explain()` を `src/` の関数に移す**ことを段 3 の plan で検討する。移せば、3.6 の構文木の検査の大部分を振る舞いの

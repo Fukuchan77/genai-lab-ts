@@ -19,14 +19,14 @@ tasks.md のサブタスク番号。`DES-#.#` は plan.md の見出しに ID と
 
 | Requirement | Design | Task | Test | Commit |
 |-------------|--------|------|------|--------|
-| REQ-001 | DES-2.2, DES-2.4, DES-2.5 | T-2.1, T-2.2, T-3.1, T-3.5, T-4.1, T-4.3 |  |  |
-| REQ-002 | DES-2.2, DES-2.5 | T-3.2, T-3.4, T-4.1 |  |  |
-| REQ-003 | DES-2.2, DES-2.5 | T-3.3, T-4.1 |  |  |
-| REQ-004 | DES-2.2, DES-2.5 | T-3.4, T-4.1, T-4.2 |  |  |
-| REQ-005 | DES-2.3, DES-2.5 | T-3.6, T-5.1, T-5.2, T-5.3 |  |  |
-| REQ-006 | DES-2.2, DES-2.4, DES-2.5 | T-2.2, T-3.1, T-3.2, T-3.3, T-3.4, T-3.5, T-3.6, T-3.7, T-4.3, T-4.4, T-8.1, T-8.2, T-8.3 |  |  |
-| REQ-007 | DES-2.6 | T-6.1, T-6.2 |  |  |
-| REQ-008 | DES-2.1, DES-2.3, DES-2.5, DES-2.6, DES-2.7 | T-1.1, T-1.2, T-1.3, T-1.4, T-5.2, T-5.3, T-6.2, T-7.1, T-7.2, T-8.3, T-8.4 |  |  |
+| REQ-001 | DES-2.2, DES-2.4, DES-2.5 | T-2.1, T-2.2, T-3.1, T-3.5, T-4.1, T-4.3 | `tests/unit/llm-call-basics.test.ts`, `tests/unit/llm-call-basics-contract.test.ts` | `c01419a`, `6a34b10` |
+| REQ-002 | DES-2.2, DES-2.5 | T-3.2, T-3.4, T-4.1 | `tests/unit/llm-call-basics.test.ts` | `6a34b10` |
+| REQ-003 | DES-2.2, DES-2.5 | T-3.3, T-4.1 | `tests/unit/llm-call-basics.test.ts` | `6a34b10` |
+| REQ-004 | DES-2.2, DES-2.5 | T-3.4, T-4.1, T-4.2 | `tests/unit/llm-call-basics.test.ts` | `6a34b10` |
+| REQ-005 | DES-2.3, DES-2.5 | T-3.6, T-5.1, T-5.2, T-5.3 | `tests/unit/hello-task.test.ts`（実測は R-5） | `6a34b10`, `34e7d65` |
+| REQ-006 | DES-2.2, DES-2.4, DES-2.5 | T-2.2, T-3.1, T-3.2, T-3.3, T-3.4, T-3.5, T-3.6, T-3.7, T-4.3, T-4.4, T-8.1, T-8.2, T-8.3 | `tests/unit/llm-call-basics.test.ts`, `tests/unit/llm-call-basics-contract.test.ts`, `tests/unit/hello-task.test.ts`（`verify` と PROVE は R-3、R-4） | `6a34b10`, `34e7d65`, `bb2740c`, `cd1211d` |
+| REQ-007 | DES-2.6 | T-6.1, T-6.2 | `tests/unit/docs-structure.test.ts`（既存。課題 5 の実測は do.md タスク 6） | `cc373c4` |
+| REQ-008 | DES-2.1, DES-2.3, DES-2.5, DES-2.6, DES-2.7 | T-1.1, T-1.2, T-1.3, T-1.4, T-5.2, T-5.3, T-6.2, T-7.1, T-7.2, T-8.3, T-8.4 | `tests/unit/repo-policy.test.ts`（照合と統治文書は R-1、R-7） | `c01419a`, `bcfe49d`, `bb2740c` |
 
 ## Gaps
 
