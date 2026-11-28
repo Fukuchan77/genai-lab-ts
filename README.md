@@ -5,7 +5,8 @@ Experimental Generative AI app lab built with Next.js, React, TypeScript, Vercel
 承認つきのツール呼び出しまでを順に作る。すべてのテストは API キーとネットワークなしで、決定論的に通る。
 
 段ごとの解説は [docs/stages/](docs/stages/) にある。最初は
-[段 1: 開発環境とゲート](docs/stages/1-dev-environment-and-gates.md)。
+[段 1: 開発環境とゲート](docs/stages/1-dev-environment-and-gates.md)。続いて
+[段 2: LLM 呼び出しの基礎](docs/stages/2-llm-call-basics.md)。
 
 ## セットアップ
 
@@ -61,6 +62,7 @@ mise を読み込まない GUI の Git クライアントから commit・push �
 | 秘密値の検査（`HEAD` から到達できる履歴） | `mise run check:secrets` |
 | 更新候補の一覧（何も書き換えない） | `mise run outdated` |
 | 使っている版の表示（記録用。合否はない） | `mise run runtime` |
+| 手元の Ollama のモデルを 1 回呼び、応答と usage を表示する（Ollama が要る。`verify` には含まれない） | `mise run hello` |
 | 単体テストを 1 ファイルだけ | `pnpm exec vitest run tests/unit/<subject>.test.ts` |
 
 - `verify` はオフラインで決定論的な検査だけを持つ。ネットワークが必要な検査は `security` に分けてある。

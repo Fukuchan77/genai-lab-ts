@@ -66,6 +66,12 @@ run = [
   { task = "e2e" },
 ]
 
+[tasks.hello]
+description = "Call the local Ollama model once and print the reply and token usage (needs Ollama; not part of verify)"
+# Manual only: verify, security, the git hooks and CI never run it (spec 002, 5.9). The react-server
+# condition lets `server-only` load outside Next.js (research.md I-9).
+run = "node --conditions=react-server scripts/hello.ts"
+
 [tasks.runtime]
 description = "Print the versions of Node, pnpm, TypeScript, Next.js, lefthook, gitleaks and osv-scanner (a record, not a check)"
 # Prints only. It compares nothing, so a version change never fails it; versions are pinned elsewhere.

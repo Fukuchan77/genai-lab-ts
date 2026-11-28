@@ -2,9 +2,10 @@
 
 コードの置き方のパターン。ファイルツリーを列挙せず、パターンと例を残す。
 
-> 状態（2026-11-25 確認）: 段 1（spec 001）で足場を取り込み、下表を実物と照合した。`src/` は
-> プレースホルダーのページと `src/lib/ai/model-allowlist.ts` だけで、`src/lib/ai/` のほかのファイル
-> （`model.ts`、`agent.ts`、`limits.ts` など）は後続の段で作る予定の置き場である。
+> 状態（2026-11-27 確認）: 段 1（spec 001）で足場を取り込み、段 2（spec 002、`feat/llm-call-basics`、未マージ）で
+> `src/lib/ai/basics.ts` と `scripts/hello.ts` を足した。下表を実物と照合した。`src/` はプレースホルダーのページ、
+> `src/lib/ai/model-allowlist.ts`、`src/lib/ai/basics.ts` で、`src/lib/ai/` のほかのファイル（`model.ts`、
+> `agent.ts`、`limits.ts` など）は後続の段で作る予定の置き場である。
 
 ## Organization Pattern
 
@@ -27,11 +28,11 @@ tests/unit/agent-approval.test.ts  # 合格判定テスト（解説から参照�
 | `src/app/` | App Router のページとルートハンドラ（例: `api/chat/route.ts`） |
 | `src/lib/ai/` | LLM 呼び出し・構造化出力・エージェント・プロバイダ・上限などのサーバー側ロジック |
 | `tests/unit/` | Vitest。モックモデルでロジックを検証 |
-| `tests/unit/setup/` | Vitest の実行設定から読む部品: 未モック通信を失敗させるガード（`network-guard.ts`）、実行 0 件を失敗にするレポーター（`require-executed-tests.ts`） |
+| `tests/unit/setup/` | Vitest の実行設定から読む部品: 未モック通信を失敗させるガード（`network-guard.ts`）、実行 0 件を失敗にするレポーター（`require-executed-tests.ts`）、`server-only` の代わりに読まれる空のモジュール（`server-only-stub.ts`） |
 | `tests/unit/helpers/` | テスト間で共有する補助（`sandbox.ts`: 一時 git リポジトリ、ツールの絶対パス解決、隔離した環境変数、子プロセスの実行） |
 | `tests/e2e/` | Playwright。`/api/chat` を SSE モックして UI フローを検証。`test` / `expect` は外部通信を遮断する `fixtures.ts` から import し、`reporters/` に実行 0 件を失敗にするレポーターを置く |
 | `tests/fixtures/` | テストが入力として使うファイル。`gate/` はゲートの自己検査（`gate-self-check.test.ts`、`network-guard.test.ts`）が入れ子の Vitest / Playwright で実行する fixture と専用設定で、通常の `mise run test` / `mise run e2e` の対象には含めない |
-| `scripts/` | 実行用の小さなスクリプトとリポジトリ検査（例: `check-model-ids.mjs`、`hello.ts`） |
+| `scripts/` | 実行用の小さなスクリプトとリポジトリ検査（例: `check-model-ids.mjs`）。`hello.ts` は実モデル（Ollama）を 1 回呼ぶ手動の実行例で、`mise run hello` からだけ動かし、`verify`・フック・CI は実行しない |
 | `docs/stages/` | 段ごとの解説 |
 | `docs/node27/` | Node 27 alpha の検証記録（1 検証 1 ファイル） |
 | `specs/` | `000-development-plan/`（全体計画）と各段の spec |

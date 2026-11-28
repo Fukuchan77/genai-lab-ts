@@ -172,6 +172,21 @@ describe("repo policy", { timeout: 120_000 }, () => {
       expect(allowBuilds).not.toContain("sharp: true");
     });
 
+    it("refuses the agent skill that the `ai` package ships (spec 002, ADR-9)", () => {
+      // Instructions bundled by a dependency are third-party input; the repository's own agent guidance
+      // lives in AGENTS.md. `pnpm approve '!ai'` writes `permissions: { ai: { skills: false } }`.
+      const permissions = yamlBlock(yamlLines("pnpm-workspace.yaml"), "permissions");
+      const start = permissions.indexOf("ai:");
+      expect(start, "permissions must have an `ai` entry").toBeGreaterThanOrEqual(0);
+      const entry: string[] = [];
+      for (const line of permissions.slice(start + 1)) {
+        // yamlBlock trims lines, so the next sibling key is the first line that is not `skills:`.
+        if (!line.startsWith("skills:")) break;
+        entry.push(line);
+      }
+      expect(entry).toEqual(["skills: false"]);
+    });
+
     it("uses the same pnpm version in package.json packageManager and in mise (1.6)", () => {
       const packageManager = stringField(readJson("package.json"), "packageManager");
       const pnpm = repoMiseTools().get("pnpm") ?? [];

@@ -4,9 +4,10 @@
 MUST / MUST NOT の正本は [.sdd/memory/constitution.md](../memory/constitution.md)。ここでは
 その原則を「どう書くか」の形で示す。
 
-> 状態（2026-11-25 確認）: 段 1（spec 001）で足場を取り込み済み（`mise.toml`、`mise.node27.toml`、
-> `package.json`、`lefthook.yml`、CI、`src/` / `tests/` の基盤）。AI SDK・Zod・shadcn/ui は後続の段で
-> 導入する。下表の版は確認日つきの参考値で、正本は `mise.toml`、`package.json`、`pnpm-lock.yaml`。
+> 状態（2026-11-27 確認）: 段 1（spec 001）で足場を取り込み済み（`mise.toml`、`mise.node27.toml`、
+> `package.json`、`lefthook.yml`、CI、`src/` / `tests/` の基盤）。段 2（spec 002）は `feat/llm-call-basics`
+> で実装済みで、AI SDK（`ai`）、Ollama 用の `@ai-sdk/openai-compatible`、`server-only`、`zod`（`ai` の peer）を
+> 導入した（未マージ）。shadcn/ui と `@ai-sdk/react` は後続の段で導入する。下表の版は確認日つきの参考値で、正本は `mise.toml`、`package.json`、`pnpm-lock.yaml`。
 > 版番号を合否に使わない。
 
 ## Stack
@@ -17,8 +18,8 @@ MUST / MUST NOT の正本は [.sdd/memory/constitution.md](../memory/constitutio
 | Package manager | pnpm 12.22 以上 | `mise.toml` と `package.json#packageManager` を一致させる |
 | Language | TypeScript 7.1 beta（Go ネイティブ） | `strict`。stable / RC が出たら切り替える |
 | Framework | Next.js 16.5 canary（App Router / Turbopack）+ React 19.3 | RSC 既定 |
-| AI | Vercel AI SDK 7（`ai`, `@ai-sdk/react`, 各プロバイダ） | テストは `ai/test` のモックモデル |
-| Validation | Zod 4.6 | システム境界で一度だけ検証 |
+| AI | Vercel AI SDK 7（`ai`、Ollama 用の `@ai-sdk/openai-compatible`。`@ai-sdk/react` と各社のプロバイダは後続の段） | テストは `ai/test` のモックモデル。`server-only` で AI 呼び出しのモジュールをサーバー専用にする |
+| Validation | Zod 4.6 | システム境界で一度だけ検証。段 2 では `ai` と `@ai-sdk/openai-compatible` の peer として入れただけで、コードは import しない |
 | UI | shadcn/ui + Tailwind CSS v4 | spec 002 以降で導入 |
 | Lint / Format | Biome | 単一の規約 |
 | Testing | Vitest（unit）/ Playwright（E2E） | 未モック通信は失敗 |
@@ -65,6 +66,15 @@ MUST / MUST NOT の正本は [.sdd/memory/constitution.md](../memory/constitutio
   export async function summarize(model: LanguageModel, input: string) { /* ... */ }
   ```
 
+- **System prompt**: `generateText` には非推奨の `system` ではなく `instructions` で渡す。ラボの設定項目の名前は
+  `system` のままで、`callModel` が `instructions` に渡す（spec 002 ADR-2）。
+- **Scripts run by Node**: `scripts/*.ts` は Node の型の除去で直接実行する。消せる構文だけを使い、型だけの import は
+  `import type`、相対 import は `.ts` 拡張子つき。`tsconfig.json` の `erasableSyntaxOnly`・`verbatimModuleSyntax`・
+  `allowImportingTsExtensions` が `mise run typecheck` で守らせる。`server-only` を import するモジュールは
+  `node --conditions=react-server` で読む（`mise run hello`）。Vitest は `server-only` だけを空のモジュールに
+  置き換える alias を持つ。
+- **Dependency agent skills**: 依存が同梱する agent skill は承認しない（`pnpm-workspace.yaml` の `permissions`、
+  `ai` は `skills: false`）。AI SDK の API は `node_modules/ai/docs/` の同梱文書で確かめる。
 - **Structured output**: `Output.object({ schema })` を使う。`generateObject` / `streamObject` は使わない。
 - **Agents**: `createGuardedAgent`（`src/lib/ai/agent.ts`）経由でのみ作る。停止条件はステップ数・
   累積トークン・実行時間の 3 種。停止理由は閉じた語彙

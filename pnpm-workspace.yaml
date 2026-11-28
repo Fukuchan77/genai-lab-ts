@@ -17,3 +17,10 @@ allowBuilds:
   # sharp (a dependency of next) is only used for next/image optimization, which this lab does not
   # use. Its install script stays blocked (spec 001, requirement 1.5).
   sharp: false
+
+# Agent skills bundled by a dependency are third-party instructions for coding agents. This repository's
+# own guidance lives in AGENTS.md, so `ai`'s skill is not approved (same result as `pnpm approve '!ai'`).
+# The bundled docs in node_modules/ai/docs/ stay readable without the skill (spec 002, ADR-9).
+permissions:
+  ai:
+    skills: false
